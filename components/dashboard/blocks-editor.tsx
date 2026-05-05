@@ -149,19 +149,23 @@ function summarize(block: EditorBlock): string {
 export function BlocksEditor({
   pageId,
   blocks,
+  template,
   onCreate,
   onUpdate,
   onDelete,
   onToggleVisibility,
   onMove,
+  onSeedStarter,
 }: {
   pageId: string;
   blocks: EditorBlock[];
+  template: "bio" | "landing";
   onCreate: (formData: FormData) => Promise<void>;
   onUpdate: (blockId: string, formData: FormData) => Promise<void>;
   onDelete: (blockId: string) => Promise<void>;
   onToggleVisibility: (blockId: string) => Promise<void>;
   onMove: (blockId: string, direction: "up" | "down") => Promise<void>;
+  onSeedStarter: (kind: "bio" | "landing") => Promise<void>;
 }) {
   const [editing, setEditing] = useState<EditorBlock | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
@@ -170,9 +174,41 @@ export function BlocksEditor({
   return (
     <div className="space-y-3">
       {blocks.length === 0 ? (
-        <p className="text-muted-foreground rounded-md border border-dashed px-4 py-8 text-center text-sm">
-          No blocks yet. Add your first one below.
-        </p>
+        <div className="rounded-md border border-dashed px-4 py-8 text-center">
+          <p className="text-muted-foreground text-sm">
+            No blocks yet. Start from a template, or build from scratch with
+            the picker below.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={template === "bio" ? "default" : "outline"}
+              onClick={() => {
+                startTransition(() => {
+                  onSeedStarter("bio");
+                });
+              }}
+            >
+              Use bio starter
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={template === "landing" ? "default" : "outline"}
+              onClick={() => {
+                startTransition(() => {
+                  onSeedStarter("landing");
+                });
+              }}
+            >
+              Use landing starter
+            </Button>
+          </div>
+          <p className="text-muted-foreground mt-3 text-xs">
+            Starter packs add 4–5 sample blocks you can edit or delete.
+          </p>
+        </div>
       ) : null}
 
       <ul className="space-y-2">

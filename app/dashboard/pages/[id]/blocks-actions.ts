@@ -386,6 +386,134 @@ export async function deleteBlock(pageId: string, blockId: string) {
   revalidatePath("/[username]", "page");
 }
 
+// ─── Starter packs ──────────────────────────────────────────────────────
+
+type StarterKind = "bio" | "landing";
+
+function bioStarter(): { type: BlockType; config: Json }[] {
+  return [
+    {
+      type: "header",
+      config: { text: "👋 Welcome" } as Json,
+    },
+    {
+      type: "link",
+      config: {
+        text: "Latest video",
+        url: "https://youtube.com/@yourchannel",
+      } as Json,
+    },
+    {
+      type: "link",
+      config: {
+        text: "Subscribe on YouTube",
+        url: "https://youtube.com/@yourchannel?sub_confirmation=1",
+      } as Json,
+    },
+    {
+      type: "email_form",
+      config: {
+        heading: "Join my list",
+        description: "I send a short note when I publish something new.",
+        button_text: "Subscribe",
+      } as Json,
+    },
+    {
+      type: "social_icons",
+      config: {
+        platforms: [
+          { type: "youtube", url: "" },
+          { type: "instagram", url: "" },
+          { type: "twitter", url: "" },
+        ],
+      } as Json,
+    },
+  ];
+}
+
+function landingStarter(): { type: BlockType; config: Json }[] {
+  return [
+    {
+      type: "hero",
+      config: {
+        heading: "The headline that earns the click",
+        subheading:
+          "One sentence on what you do and who it's for. Short and clear.",
+        cta_text: "Get started",
+        cta_url: "",
+        align: "center",
+      } as Json,
+    },
+    {
+      type: "features",
+      config: {
+        heading: "What you get",
+        items: [
+          { title: "Feature one", description: "Explain the benefit, not the feature.", icon: "✨" },
+          { title: "Feature two", description: "Make it about your audience.", icon: "🚀" },
+          { title: "Feature three", description: "Concrete and short wins.", icon: "🎯" },
+        ],
+      } as Json,
+    },
+    {
+      type: "testimonial",
+      config: {
+        quote: "This was easily the best decision I made this year.",
+        author: "Real Person",
+        role: "Their role / @handle",
+      } as Json,
+    },
+    {
+      type: "cta",
+      config: {
+        heading: "Ready when you are.",
+        subheading: "Skip the waiting list — start today.",
+        button_text: "Start now",
+        button_url: "",
+      } as Json,
+    },
+  ];
+}
+
+export async function seedStarterBlocks(
+  pageId: string,
+  kind: StarterKind,
+) {
+  const { supabase } = await requireUser(pageId);
+
+  // Reject if the page already has blocks — starter packs are for empty pages.
+  const { count } = await supabase
+    .from("blocks")
+    .select("id", { count: "exact", head: true })
+    .eq("page_id", pageId);
+  if ((count ?? 0) > 0) {
+    redirect(
+      `/dashboard/pages/${pageId}?error=${encodeURIComponent(
+        "Starter packs are only for empty pages. Delete existing blocks first.",
+      )}`,
+    );
+  }
+
+  const starter = kind === "landing" ? landingStarter() : bioStarter();
+  const rows = starter.map((b, i) => ({
+    page_id: pageId,
+    type: b.type,
+    config: b.config,
+    position: i + 1,
+    is_visible: true,
+  }));
+
+  const { error } = await supabase.from("blocks").insert(rows);
+  if (error) {
+    redirect(
+      `/dashboard/pages/${pageId}?error=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  revalidatePath(`/dashboard/pages/${pageId}`);
+  revalidatePath("/[username]", "page");
+}
+
 export async function moveBlock(
   pageId: string,
   blockId: string,

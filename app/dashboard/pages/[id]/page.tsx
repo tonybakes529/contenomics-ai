@@ -25,6 +25,7 @@ import {
   createBlock,
   deleteBlock,
   moveBlock,
+  seedStarterBlocks,
   toggleBlockVisibility,
   updateBlock,
 } from "./blocks-actions";
@@ -79,6 +80,7 @@ export default async function PageEditor({
   const deleteBlockBound = deleteBlock.bind(null, page.id);
   const toggleBlockVisibilityBound = toggleBlockVisibility.bind(null, page.id);
   const moveBlockBound = moveBlock.bind(null, page.id);
+  const seedStarterBound = seedStarterBlocks.bind(null, page.id);
 
   const publicUrl =
     profile?.username && page.is_default
@@ -273,6 +275,7 @@ export default async function PageEditor({
         <CardContent>
           <BlocksEditor
             pageId={page.id}
+            template={page.template}
             blocks={(blocks ?? []).map((b) => ({
               id: b.id,
               type: b.type,
@@ -285,6 +288,7 @@ export default async function PageEditor({
             onDelete={deleteBlockBound}
             onToggleVisibility={toggleBlockVisibilityBound}
             onMove={moveBlockBound}
+            onSeedStarter={seedStarterBound}
           />
         </CardContent>
       </Card>
