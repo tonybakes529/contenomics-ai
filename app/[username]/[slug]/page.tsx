@@ -2,56 +2,47 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PublicPage } from "@/components/public/public-page";
 
-// Reserved single-segment paths that must not be matched as usernames.
-// Static routes win in Next.js, but this prevents a user signing up as
-// "dashboard" from breaking their own URL.
-const RESERVED = new Set([
-  "login",
-  "signup",
-  "logout",
-  "dashboard",
-  "auth",
-  "api",
-  "settings",
-  "admin",
-  "_next",
-]);
-
 export const dynamic = "force-dynamic";
 
-type Props = { params: { username: string } };
+type Props = { params: { username: string; slug: string } };
 
 export async function generateMetadata({ params }: Props) {
   const username = decodeURIComponent(params.username).toLowerCase();
-  if (RESERVED.has(username)) return { title: "Not found" };
-
+  const slug = decodeURIComponent(params.slug).toLowerCase();
   const supabase = createClient();
+
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, username, bio")
+    .select("id, display_name, username, bio")
     .eq("username", username)
     .maybeSingle();
-
   if (!profile) return { title: "Not found" };
 
-  const title = profile.display_name
-    ? `${profile.display_name} (@${profile.username})`
-    : `@${profile.username}`;
+  const { data: page } = await supabase
+    .from("pages")
+    .select("title, description")
+    .eq("profile_id", profile.id)
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .maybeSingle();
+  if (!page) return { title: "Not found" };
+
+  const titleBase = profile.display_name ?? `@${profile.username}`;
+  const title = page.title ? `${page.title} — ${titleBase}` : titleBase;
 
   return {
     title,
-    description: profile.bio ?? `Find ${profile.username} on Contenomics`,
+    description: page.description ?? profile.bio ?? undefined,
     openGraph: {
       title,
-      description: profile.bio ?? undefined,
+      description: page.description ?? profile.bio ?? undefined,
     },
   };
 }
 
-export default async function PublicBioPage({ params }: Props) {
+export default async function PublicSlugPage({ params }: Props) {
   const username = decodeURIComponent(params.username).toLowerCase();
-  if (RESERVED.has(username)) notFound();
-
+  const slug = decodeURIComponent(params.slug).toLowerCase();
   const supabase = createClient();
 
   const { data: profile } = await supabase
@@ -59,19 +50,19 @@ export default async function PublicBioPage({ params }: Props) {
     .select("id, username, display_name, avatar_url, bio")
     .eq("username", username)
     .maybeSingle();
-
   if (!profile) notFound();
 
   const { data: page } = await supabase
     .from("pages")
-    .select("id, title, description, is_published, is_default, template")
+    .select("id, title, description, is_published, is_default, template, slug")
     .eq("profile_id", profile.id)
-    .eq("is_default", true)
+    .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
-
   if (!page) notFound();
 
+  // If this is the default page, the canonical URL is /username — but we
+  // still render here rather than redirecting, since the URL is valid.
   const { data: blocks } = await supabase
     .from("blocks")
     .select("id, type, position, config")

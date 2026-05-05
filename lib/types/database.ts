@@ -20,7 +20,16 @@ export type BlockType =
   | "social_icons"
   | "image"
   | "divider"
-  | "product";
+  | "product"
+  | "hero"
+  | "testimonial"
+  | "features"
+  | "cta"
+  | "faq"
+  | "pricing"
+  | "stats";
+
+export type PageTemplate = "bio" | "landing";
 
 export type SubscriberStatus =
   | "pending"
@@ -69,6 +78,7 @@ export interface Database {
           title: string | null;
           description: string | null;
           theme: Json;
+          template: PageTemplate;
           is_published: boolean;
           is_default: boolean;
           view_count: number;
@@ -82,6 +92,7 @@ export interface Database {
           title?: string | null;
           description?: string | null;
           theme?: Json;
+          template?: PageTemplate;
           is_published?: boolean;
           is_default?: boolean;
           view_count?: number;
@@ -95,6 +106,7 @@ export interface Database {
           title?: string | null;
           description?: string | null;
           theme?: Json;
+          template?: PageTemplate;
           is_published?: boolean;
           is_default?: boolean;
           view_count?: number;

@@ -65,6 +65,9 @@ export async function updatePageMeta(pageId: string, formData: FormData) {
   const rawSlug = String(formData.get("slug") ?? "").trim();
   const isPublished = formData.get("is_published") === "on";
   const isDefault = formData.get("is_default") === "on";
+  const rawTemplate = String(formData.get("template") ?? "bio");
+  const template: "bio" | "landing" =
+    rawTemplate === "landing" ? "landing" : "bio";
 
   const slug = rawSlug ? slugify(rawSlug) : "";
   if (!slug || !SLUG_RE.test(slug)) {
@@ -91,6 +94,7 @@ export async function updatePageMeta(pageId: string, formData: FormData) {
       title: title || null,
       description: description || null,
       slug,
+      template,
       is_published: isPublished,
       is_default: isDefault,
     })

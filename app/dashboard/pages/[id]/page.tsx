@@ -50,7 +50,7 @@ export default async function PageEditor({
   const { data: page } = await supabase
     .from("pages")
     .select(
-      "id, slug, title, description, is_published, is_default, view_count, updated_at",
+      "id, slug, title, description, is_published, is_default, template, view_count, updated_at",
     )
     .eq("id", params.id)
     .eq("profile_id", user.id)
@@ -188,8 +188,9 @@ export default async function PageEditor({
                 required
               />
               <p className="text-muted-foreground text-xs">
-                Used in your URL. Only the default page is publicly routable
-                today.
+                Default page lives at <code>/{profile?.username ?? "username"}</code>.
+                Other pages live at{" "}
+                <code>/{profile?.username ?? "username"}/{page.slug}</code>.
               </p>
             </div>
             <div className="space-y-1.5">
@@ -201,6 +202,24 @@ export default async function PageEditor({
                 placeholder="What this page is about (optional, for SEO)."
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Template</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <TemplateOption
+                  value="bio"
+                  current={page.template}
+                  title="Link in bio"
+                  description="Mobile-first centered column. Best for the link in your YouTube description."
+                />
+                <TemplateOption
+                  value="landing"
+                  current={page.template}
+                  title="Landing page"
+                  description="Wide, sectioned, desktop-friendly. Good for product launches and sales pitches."
+                />
+              </div>
             </div>
 
             <div className="border-border flex items-center justify-between rounded-md border px-3 py-3">
@@ -286,5 +305,42 @@ export default async function PageEditor({
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function TemplateOption({
+  value,
+  current,
+  title,
+  description,
+}: {
+  value: "bio" | "landing";
+  current: string;
+  title: string;
+  description: string;
+}) {
+  const checked = current === value;
+  return (
+    <label
+      className={
+        checked
+          ? "border-foreground bg-foreground/5 ring-foreground/20 cursor-pointer rounded-lg border p-3 ring-2"
+          : "border-border hover:bg-muted/40 cursor-pointer rounded-lg border p-3"
+      }
+    >
+      <div className="flex items-start gap-3">
+        <input
+          type="radio"
+          name="template"
+          value={value}
+          defaultChecked={checked}
+          className="mt-1"
+        />
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{title}</p>
+          <p className="text-muted-foreground text-xs">{description}</p>
+        </div>
+      </div>
+    </label>
   );
 }

@@ -15,6 +15,13 @@ const VALID_TYPES = [
   "image",
   "divider",
   "product",
+  "hero",
+  "testimonial",
+  "features",
+  "cta",
+  "faq",
+  "pricing",
+  "stats",
 ] as const;
 type BlockType = (typeof VALID_TYPES)[number];
 
@@ -53,6 +60,46 @@ function defaultConfig(type: BlockType): Json {
       return {} as Json;
     case "product":
       return { url: "", title: "" } as Json;
+    case "hero":
+      return {
+        heading: "Headline that earns the click",
+        subheading: "One sentence on what you do and who it's for.",
+        cta_text: "",
+        cta_url: "",
+        align: "center",
+      } as Json;
+    case "testimonial":
+      return {
+        quote: "",
+        author: "",
+        role: "",
+      } as Json;
+    case "features":
+      return {
+        heading: "What you get",
+        items: [],
+      } as Json;
+    case "cta":
+      return {
+        heading: "Ready to start?",
+        button_text: "Get started",
+        button_url: "",
+      } as Json;
+    case "faq":
+      return {
+        heading: "Frequently asked questions",
+        items: [],
+      } as Json;
+    case "pricing":
+      return {
+        heading: "Simple pricing",
+        tiers: [],
+      } as Json;
+    case "stats":
+      return {
+        heading: "",
+        items: [],
+      } as Json;
   }
 }
 
@@ -93,6 +140,115 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
         price: get("price") || undefined,
         image: get("image") || undefined,
       } as Json;
+
+    case "hero":
+      return {
+        heading: get("heading"),
+        subheading: get("subheading") || undefined,
+        cta_text: get("cta_text") || undefined,
+        cta_url: get("cta_url") || undefined,
+        image_url: get("image_url") || undefined,
+        align: get("align") === "left" ? "left" : "center",
+      } as Json;
+
+    case "testimonial":
+      return {
+        quote: get("quote"),
+        author: get("author"),
+        role: get("role") || undefined,
+        avatar_url: get("avatar_url") || undefined,
+      } as Json;
+
+    case "features": {
+      const items: { title: string; description?: string; icon?: string }[] = [];
+      for (let i = 0; i < 6; i++) {
+        const title = get(`feature_title_${i}`);
+        if (!title) continue;
+        items.push({
+          title,
+          description: get(`feature_description_${i}`) || undefined,
+          icon: get(`feature_icon_${i}`) || undefined,
+        });
+      }
+      return {
+        heading: get("heading") || undefined,
+        subheading: get("subheading") || undefined,
+        items,
+      } as Json;
+    }
+
+    case "cta":
+      return {
+        heading: get("heading"),
+        subheading: get("subheading") || undefined,
+        button_text: get("button_text") || "Get started",
+        button_url: get("button_url"),
+      } as Json;
+
+    case "faq": {
+      const items: { question: string; answer: string }[] = [];
+      for (let i = 0; i < 5; i++) {
+        const question = get(`faq_question_${i}`);
+        if (!question) continue;
+        items.push({
+          question,
+          answer: get(`faq_answer_${i}`),
+        });
+      }
+      return {
+        heading: get("heading") || undefined,
+        items,
+      } as Json;
+    }
+
+    case "pricing": {
+      const tiers: {
+        name: string;
+        price: string;
+        description?: string;
+        features?: string[];
+        cta_text?: string;
+        cta_url?: string;
+        highlighted?: boolean;
+      }[] = [];
+      for (let i = 0; i < 3; i++) {
+        const name = get(`tier_name_${i}`);
+        if (!name) continue;
+        const featuresText = get(`tier_features_${i}`);
+        const features = featuresText
+          .split(/\r?\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+        tiers.push({
+          name,
+          price: get(`tier_price_${i}`),
+          description: get(`tier_description_${i}`) || undefined,
+          features: features.length > 0 ? features : undefined,
+          cta_text: get(`tier_cta_text_${i}`) || undefined,
+          cta_url: get(`tier_cta_url_${i}`) || undefined,
+          highlighted: fd.get(`tier_highlighted_${i}`) === "on",
+        });
+      }
+      return {
+        heading: get("heading") || undefined,
+        subheading: get("subheading") || undefined,
+        tiers,
+      } as Json;
+    }
+
+    case "stats": {
+      const items: { value: string; label: string }[] = [];
+      for (let i = 0; i < 4; i++) {
+        const value = get(`stat_value_${i}`);
+        const label = get(`stat_label_${i}`);
+        if (!value && !label) continue;
+        items.push({ value, label });
+      }
+      return {
+        heading: get("heading") || undefined,
+        items,
+      } as Json;
+    }
   }
 }
 

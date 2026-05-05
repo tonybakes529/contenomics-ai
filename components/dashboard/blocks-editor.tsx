@@ -38,9 +38,16 @@ export type EditorBlock = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
+  hero: "Hero",
   link: "Link",
   header: "Heading",
   text: "Text",
+  features: "Features grid",
+  testimonial: "Testimonial",
+  pricing: "Pricing",
+  stats: "Stats",
+  faq: "FAQ",
+  cta: "Call to action",
   email_form: "Email form",
   video_embed: "Video",
   social_icons: "Social icons",
@@ -49,6 +56,8 @@ const TYPE_LABELS: Record<string, string> = {
   product: "Product",
 };
 
+// Two groups in the picker: simple link-page blocks first, then full-width
+// landing sections. Order roughly by what creators reach for most.
 const TYPE_ORDER = [
   "link",
   "header",
@@ -59,16 +68,25 @@ const TYPE_ORDER = [
   "image",
   "divider",
   "product",
+  // landing-page section types
+  "hero",
+  "features",
+  "testimonial",
+  "pricing",
+  "stats",
+  "faq",
+  "cta",
 ];
 
 function summarize(block: EditorBlock): string {
   const c = (block.config ?? {}) as Record<string, unknown>;
+  const truncate = (s: string) => (s.length > 80 ? `${s.slice(0, 77)}…` : s);
   switch (block.type) {
     case "link":
       return (c.text as string) || (c.url as string) || "—";
     case "header":
     case "text":
-      return ((c.text as string) || "—").slice(0, 80);
+      return truncate((c.text as string) || "—");
     case "email_form":
       return (c.heading as string) || "Email signup";
     case "video_embed":
@@ -87,6 +105,42 @@ function summarize(block: EditorBlock): string {
       return "—";
     case "product":
       return (c.title as string) || (c.url as string) || "—";
+    case "hero":
+      return truncate((c.heading as string) || "(empty hero)");
+    case "testimonial":
+      return truncate((c.quote as string) || "(empty testimonial)");
+    case "features": {
+      const items = Array.isArray(c.items)
+        ? (c.items as { title?: string }[])
+        : [];
+      const filled = items.filter((i) => i.title).length;
+      return (c.heading as string)
+        ? `${c.heading} · ${filled} item${filled === 1 ? "" : "s"}`
+        : `${filled} feature${filled === 1 ? "" : "s"}`;
+    }
+    case "cta":
+      return truncate((c.heading as string) || "(empty CTA)");
+    case "faq": {
+      const items = Array.isArray(c.items)
+        ? (c.items as { question?: string }[])
+        : [];
+      const filled = items.filter((i) => i.question).length;
+      return `${filled} question${filled === 1 ? "" : "s"}`;
+    }
+    case "pricing": {
+      const tiers = Array.isArray(c.tiers)
+        ? (c.tiers as { name?: string }[])
+        : [];
+      const filled = tiers.filter((t) => t.name).length;
+      return `${filled} tier${filled === 1 ? "" : "s"}`;
+    }
+    case "stats": {
+      const items = Array.isArray(c.items)
+        ? (c.items as { value?: string }[])
+        : [];
+      const filled = items.filter((i) => i.value).length;
+      return `${filled} stat${filled === 1 ? "" : "s"}`;
+    }
     default:
       return "—";
   }

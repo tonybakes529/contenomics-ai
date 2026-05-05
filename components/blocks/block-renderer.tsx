@@ -4,12 +4,19 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   toEmbedUrl,
+  type CtaConfig,
   type EmailFormConfig,
+  type FaqConfig,
+  type FeaturesConfig,
   type HeaderConfig,
+  type HeroConfig,
   type ImageConfig,
   type LinkConfig,
+  type PricingConfig,
   type ProductConfig,
   type SocialIconsConfig,
+  type StatsConfig,
+  type TestimonialConfig,
   type TextConfig,
   type VideoEmbedConfig,
 } from "@/lib/blocks/types";
@@ -65,12 +72,15 @@ function fireTrackClick(blockId: string) {
 export function BlockRenderer({
   blocks,
   pageId,
+  template = "bio",
 }: {
   blocks: RendererBlock[];
   pageId: string;
+  template?: "bio" | "landing";
 }) {
+  const gap = template === "landing" ? "gap-12 sm:gap-16" : "gap-3";
   return (
-    <div className="flex w-full flex-col gap-3">
+    <div className={cn("flex w-full flex-col", gap)}>
       {blocks.map((b) => (
         <BlockItem key={b.id} block={b} pageId={pageId} />
       ))}
@@ -88,6 +98,20 @@ function BlockItem({
   switch (block.type) {
     case "link":
       return <LinkBlock block={block} />;
+    case "hero":
+      return <HeroBlock block={block} />;
+    case "testimonial":
+      return <TestimonialBlock block={block} />;
+    case "features":
+      return <FeaturesBlock block={block} />;
+    case "cta":
+      return <CtaBlock block={block} />;
+    case "faq":
+      return <FaqBlock block={block} />;
+    case "pricing":
+      return <PricingBlock block={block} />;
+    case "stats":
+      return <StatsBlock block={block} />;
     case "header":
       return <HeaderBlock block={block} />;
     case "text":
@@ -338,5 +362,330 @@ function EmailFormBlock({
         </p>
       ) : null}
     </form>
+  );
+}
+
+// ─── Landing-page section blocks ────────────────────────────────────────
+
+function HeroBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as HeroConfig;
+  if (!cfg?.heading) return null;
+  const align = cfg.align ?? "center";
+  return (
+    <section
+      className={cn(
+        "w-full py-6 sm:py-12",
+        align === "center" ? "text-center" : "text-left",
+      )}
+    >
+      <div
+        className={cn(
+          "grid items-center gap-8 sm:gap-12",
+          cfg.image_url && align !== "center" ? "sm:grid-cols-2" : "",
+        )}
+      >
+        <div
+          className={cn(
+            "space-y-4",
+            align === "center" ? "mx-auto max-w-2xl" : "",
+          )}
+        >
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+            {cfg.heading}
+          </h1>
+          {cfg.subheading ? (
+            <p className="text-muted-foreground text-base sm:text-lg">
+              {cfg.subheading}
+            </p>
+          ) : null}
+          {cfg.cta_url && cfg.cta_text ? (
+            <div
+              className={cn(
+                "pt-1",
+                align === "center" ? "flex justify-center" : "",
+              )}
+            >
+              <a
+                href={cfg.cta_url}
+                onClick={() => fireTrackClick(block.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-foreground text-background inline-flex h-11 items-center rounded-xl px-5 text-sm font-medium shadow-sm transition-opacity hover:opacity-90"
+              >
+                {cfg.cta_text}
+              </a>
+            </div>
+          ) : null}
+        </div>
+        {cfg.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cfg.image_url}
+            alt=""
+            className="w-full rounded-2xl object-cover"
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function TestimonialBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as TestimonialConfig;
+  if (!cfg?.quote) return null;
+  return (
+    <figure className="border-border bg-background w-full rounded-2xl border p-6 shadow-sm sm:p-8">
+      <blockquote className="text-base leading-relaxed sm:text-lg">
+        &ldquo;{cfg.quote}&rdquo;
+      </blockquote>
+      <figcaption className="mt-4 flex items-center gap-3">
+        {cfg.avatar_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cfg.avatar_url}
+            alt=""
+            className="size-10 rounded-full object-cover"
+          />
+        ) : (
+          <div className="bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-full text-xs font-semibold">
+            {(cfg.author ?? "?").slice(0, 2).toUpperCase()}
+          </div>
+        )}
+        <div className="text-sm">
+          <p className="font-medium">{cfg.author}</p>
+          {cfg.role ? (
+            <p className="text-muted-foreground text-xs">{cfg.role}</p>
+          ) : null}
+        </div>
+      </figcaption>
+    </figure>
+  );
+}
+
+function FeaturesBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as FeaturesConfig;
+  const items = (cfg?.items ?? []).filter((i) => i.title);
+  if (items.length === 0) return null;
+  return (
+    <section className="w-full space-y-6">
+      {cfg.heading ? (
+        <div className="space-y-2 text-center">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {cfg.heading}
+          </h2>
+          {cfg.subheading ? (
+            <p className="text-muted-foreground mx-auto max-w-2xl text-sm sm:text-base">
+              {cfg.subheading}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "grid gap-4 sm:gap-6",
+          items.length >= 3 ? "sm:grid-cols-2 md:grid-cols-3" : "sm:grid-cols-2",
+        )}
+      >
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className="border-border bg-background rounded-xl border p-5"
+          >
+            {item.icon ? (
+              <div className="mb-3 text-2xl">{item.icon}</div>
+            ) : null}
+            <h3 className="text-sm font-semibold">{item.title}</h3>
+            {item.description ? (
+              <p className="text-muted-foreground mt-1 text-sm">
+                {item.description}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CtaBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as CtaConfig;
+  if (!cfg?.heading || !cfg?.button_text || !cfg?.button_url) return null;
+  return (
+    <section className="bg-foreground text-background w-full rounded-2xl px-6 py-10 text-center sm:px-12 sm:py-14">
+      <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        {cfg.heading}
+      </h2>
+      {cfg.subheading ? (
+        <p className="mx-auto mt-3 max-w-xl text-sm opacity-80 sm:text-base">
+          {cfg.subheading}
+        </p>
+      ) : null}
+      <div className="mt-6">
+        <a
+          href={cfg.button_url}
+          onClick={() => fireTrackClick(block.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-background text-foreground inline-flex h-11 items-center rounded-xl px-5 text-sm font-medium transition-opacity hover:opacity-90"
+        >
+          {cfg.button_text}
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function FaqBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as FaqConfig;
+  const items = (cfg?.items ?? []).filter((i) => i.question);
+  if (items.length === 0) return null;
+  return (
+    <section className="w-full space-y-6">
+      {cfg.heading ? (
+        <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
+          {cfg.heading}
+        </h2>
+      ) : null}
+      <div className="border-border bg-background mx-auto w-full max-w-3xl divide-y rounded-xl border">
+        {items.map((item, i) => (
+          <details key={i} className="group p-5">
+            <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              <span>{item.question}</span>
+              <span
+                className="text-muted-foreground transition-transform group-open:rotate-45"
+                aria-hidden
+              >
+                +
+              </span>
+            </summary>
+            {item.answer ? (
+              <p className="text-muted-foreground mt-3 text-sm whitespace-pre-line">
+                {item.answer}
+              </p>
+            ) : null}
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PricingBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as PricingConfig;
+  const tiers = (cfg?.tiers ?? []).filter((t) => t.name);
+  if (tiers.length === 0) return null;
+  return (
+    <section className="w-full space-y-6">
+      {cfg.heading ? (
+        <div className="space-y-2 text-center">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {cfg.heading}
+          </h2>
+          {cfg.subheading ? (
+            <p className="text-muted-foreground mx-auto max-w-2xl text-sm sm:text-base">
+              {cfg.subheading}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <div
+        className={cn(
+          "grid gap-4 sm:gap-6",
+          tiers.length >= 3 ? "sm:grid-cols-3" : "sm:grid-cols-2",
+        )}
+      >
+        {tiers.map((tier, i) => (
+          <div
+            key={i}
+            className={cn(
+              "rounded-2xl border p-6 transition-shadow",
+              tier.highlighted
+                ? "border-foreground bg-foreground text-background shadow-lg"
+                : "border-border bg-background",
+            )}
+          >
+            <h3 className="text-sm font-semibold">{tier.name}</h3>
+            <p className="mt-2 text-3xl font-semibold tracking-tight">
+              {tier.price}
+            </p>
+            {tier.description ? (
+              <p
+                className={cn(
+                  "mt-2 text-sm",
+                  tier.highlighted ? "opacity-80" : "text-muted-foreground",
+                )}
+              >
+                {tier.description}
+              </p>
+            ) : null}
+            {tier.features && tier.features.length > 0 ? (
+              <ul className="mt-4 space-y-2 text-sm">
+                {tier.features.map((f, j) => (
+                  <li key={j} className="flex items-start gap-2">
+                    <span aria-hidden>✓</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {tier.cta_text && tier.cta_url ? (
+              <a
+                href={tier.cta_url}
+                onClick={() => fireTrackClick(block.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "mt-6 inline-flex h-10 w-full items-center justify-center rounded-md text-sm font-medium transition-opacity hover:opacity-90",
+                  tier.highlighted
+                    ? "bg-background text-foreground"
+                    : "bg-foreground text-background",
+                )}
+              >
+                {tier.cta_text}
+              </a>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StatsBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as StatsConfig;
+  const items = (cfg?.items ?? []).filter((i) => i.value || i.label);
+  if (items.length === 0) return null;
+  return (
+    <section className="w-full space-y-6">
+      {cfg.heading ? (
+        <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
+          {cfg.heading}
+        </h2>
+      ) : null}
+      <div
+        className={cn(
+          "grid gap-4 text-center sm:gap-6",
+          items.length >= 4
+            ? "grid-cols-2 sm:grid-cols-4"
+            : items.length === 3
+              ? "grid-cols-1 sm:grid-cols-3"
+              : "grid-cols-2",
+        )}
+      >
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className="border-border bg-background rounded-xl border p-5"
+          >
+            <p className="text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">
+              {item.value}
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs uppercase tracking-wide">
+              {item.label}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

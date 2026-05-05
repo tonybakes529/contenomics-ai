@@ -36,6 +36,79 @@ export type ProductConfig = {
   image?: string;
 };
 
+// ─── Landing-page sections ─────────────────────────────────────────────
+
+export type HeroConfig = {
+  heading: string;
+  subheading?: string;
+  cta_text?: string;
+  cta_url?: string;
+  image_url?: string;
+  align?: "left" | "center";
+};
+
+export type TestimonialConfig = {
+  quote: string;
+  author: string;
+  role?: string;
+  avatar_url?: string;
+};
+
+export type FeatureItem = {
+  title: string;
+  description?: string;
+  icon?: string; // emoji or short label
+};
+
+export type FeaturesConfig = {
+  heading?: string;
+  subheading?: string;
+  items: FeatureItem[];
+};
+
+export type CtaConfig = {
+  heading: string;
+  subheading?: string;
+  button_text: string;
+  button_url: string;
+};
+
+export type FaqItem = {
+  question: string;
+  answer: string;
+};
+
+export type FaqConfig = {
+  heading?: string;
+  items: FaqItem[];
+};
+
+export type PricingTier = {
+  name: string;
+  price: string;
+  description?: string;
+  features?: string[];
+  cta_text?: string;
+  cta_url?: string;
+  highlighted?: boolean;
+};
+
+export type PricingConfig = {
+  heading?: string;
+  subheading?: string;
+  tiers: PricingTier[];
+};
+
+export type StatItem = {
+  value: string;
+  label: string;
+};
+
+export type StatsConfig = {
+  heading?: string;
+  items: StatItem[];
+};
+
 export type AnyBlockConfig =
   | LinkConfig
   | HeaderConfig
@@ -45,7 +118,14 @@ export type AnyBlockConfig =
   | SocialIconsConfig
   | ImageConfig
   | DividerConfig
-  | ProductConfig;
+  | ProductConfig
+  | HeroConfig
+  | TestimonialConfig
+  | FeaturesConfig
+  | CtaConfig
+  | FaqConfig
+  | PricingConfig
+  | StatsConfig;
 
 // Convert YouTube/Vimeo watch URL to embeddable URL.
 export function toEmbedUrl(url: string): string {
