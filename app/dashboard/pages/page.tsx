@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { createPage } from "./actions";
-import { Plus } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
 
 export const metadata = {
   title: "Pages — Contenomics",
@@ -30,12 +30,23 @@ export default async function PagesListPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/dashboard/pages");
 
-  const { data: pages } = await supabase
-    .from("pages")
-    .select("id, slug, title, is_published, is_default, view_count, updated_at")
-    .eq("profile_id", user.id)
-    .order("is_default", { ascending: false })
-    .order("updated_at", { ascending: false });
+  const [pagesRes, profileRes] = await Promise.all([
+    supabase
+      .from("pages")
+      .select(
+        "id, slug, title, is_published, is_default, template, view_count, updated_at",
+      )
+      .eq("profile_id", user.id)
+      .order("is_default", { ascending: false })
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", user.id)
+      .maybeSingle(),
+  ]);
+  const pages = pagesRes.data;
+  const username = profileRes.data?.username ?? null;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -80,7 +91,8 @@ export default async function PagesListPage({
           <TableHeader>
             <TableRow>
               <TableHead>Title</TableHead>
-              <TableHead>Slug</TableHead>
+              <TableHead>URL</TableHead>
+              <TableHead>Template</TableHead>
               <TableHead className="text-right">Views</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Updated</TableHead>
@@ -88,36 +100,61 @@ export default async function PagesListPage({
           </TableHeader>
           <TableBody>
             {pages && pages.length > 0 ? (
-              pages.map((p) => (
-                <TableRow key={p.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link
-                      href={`/dashboard/pages/${p.id}`}
-                      className="block font-medium underline-offset-2 hover:underline"
-                    >
-                      {p.title || "(untitled)"}
-                    </Link>
-                    {p.is_default ? (
-                      <span className="text-muted-foreground mt-0.5 block text-xs">
-                        Default page
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">{p.slug}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {(p.view_count ?? 0).toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <StatusPill published={p.is_published} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right text-xs">
-                    {new Date(p.updated_at).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-              ))
+              pages.map((p) => {
+                const publicPath =
+                  username && p.is_default
+                    ? `/${username}`
+                    : username
+                      ? `/${username}/${p.slug}`
+                      : null;
+                return (
+                  <TableRow key={p.id} className="cursor-pointer">
+                    <TableCell>
+                      <Link
+                        href={`/dashboard/pages/${p.id}`}
+                        className="block font-medium underline-offset-2 hover:underline"
+                      >
+                        {p.title || "(untitled)"}
+                      </Link>
+                      {p.is_default ? (
+                        <span className="text-muted-foreground mt-0.5 block text-xs">
+                          Default page
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {publicPath ? (
+                        <a
+                          href={publicPath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-foreground inline-flex items-center gap-1"
+                        >
+                          {publicPath}
+                          <ExternalLink className="size-3" />
+                        </a>
+                      ) : (
+                        p.slug
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs capitalize">
+                      {p.template === "landing" ? "Landing" : "Bio"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {(p.view_count ?? 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill published={p.is_published} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-right text-xs">
+                      {new Date(p.updated_at).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground py-12 text-center text-sm">
+                <TableCell colSpan={6} className="text-muted-foreground py-12 text-center text-sm">
                   No pages yet. Click <span className="font-medium">New page</span> to create one.
                 </TableCell>
               </TableRow>
