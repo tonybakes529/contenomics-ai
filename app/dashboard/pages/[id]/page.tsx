@@ -90,11 +90,13 @@ export default async function PageEditor({
         ? `/${profile.username}/${page.slug}`
         : null;
 
-  // Preview iframe loads our internal preview route (auth-scoped, bypasses
-  // is_published). The refreshKey changes whenever the server re-renders
-  // this editor — which happens after every revalidatePath fired by an
-  // action — so the iframe re-mounts with fresh content automatically.
-  const previewSrc = `/dashboard/pages/${page.id}/preview`;
+  // Preview iframe loads the actual public URL. The public route shows
+  // unpublished drafts when the visitor owns the profile (auth-scoped),
+  // so the iframe renders without dashboard chrome and stays in lock-step
+  // with what published visitors will eventually see.
+  // refreshKey changes after every revalidatePath fired by an action, so
+  // the iframe re-mounts with fresh content automatically.
+  const previewSrc = publicUrl ?? "/";
   const refreshKey = `${page.updated_at}:${blocks?.length ?? 0}`;
 
   return (

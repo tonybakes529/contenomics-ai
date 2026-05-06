@@ -62,14 +62,23 @@ export default async function PublicBioPage({ params }: Props) {
 
   if (!profile) notFound();
 
-  const { data: page } = await supabase
+  // The owner viewing their own page sees unpublished drafts too —
+  // makes the iframe in the dashboard editor work without a separate
+  // /preview route, and lets the creator self-preview by just visiting
+  // /{username} while signed in.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isOwner = !!user && user.id === profile.id;
+
+  let pageQuery = supabase
     .from("pages")
     .select("id, title, description, is_published, is_default, template")
     .eq("profile_id", profile.id)
-    .eq("is_default", true)
-    .eq("is_published", true)
-    .maybeSingle();
+    .eq("is_default", true);
+  if (!isOwner) pageQuery = pageQuery.eq("is_published", true);
 
+  const { data: page } = await pageQuery.maybeSingle();
   if (!page) notFound();
 
   const { data: blocks } = await supabase

@@ -52,13 +52,21 @@ export default async function PublicSlugPage({ params }: Props) {
     .maybeSingle();
   if (!profile) notFound();
 
-  const { data: page } = await supabase
+  // Owner sees their own unpublished drafts (lets the editor's preview
+  // iframe show in-progress pages without a separate /preview route).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const isOwner = !!user && user.id === profile.id;
+
+  let pageQuery = supabase
     .from("pages")
     .select("id, title, description, is_published, is_default, template, slug")
     .eq("profile_id", profile.id)
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle();
+    .eq("slug", slug);
+  if (!isOwner) pageQuery = pageQuery.eq("is_published", true);
+
+  const { data: page } = await pageQuery.maybeSingle();
   if (!page) notFound();
 
   // If this is the default page, the canonical URL is /username — but we
