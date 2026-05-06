@@ -19,7 +19,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ListPlus, X } from "lucide-react";
+import { ListMinus, ListPlus, X } from "lucide-react";
+
+export type FormSubmission = {
+  block_id: string | null;
+  page_id: string | null;
+  submitted_at: string;
+  answers: Array<{
+    question_id: string;
+    label: string;
+    type: string;
+    value: unknown;
+  }>;
+};
 
 export type SubscriberRow = {
   id: string;
@@ -28,9 +40,11 @@ export type SubscriberRow = {
   status: string;
   source_page_id: string | null;
   source_slug: string | null;
+  source_block_id: string | null;
   created_at: string;
-  form_submissions_count: number;
-  // List ids the subscriber currently belongs to.
+  confirmed_at: string | null;
+  unsubscribed_at: string | null;
+  form_submissions: FormSubmission[];
   list_ids: string[];
 };
 
@@ -51,20 +65,27 @@ export function SubscribersTable({
   rows,
   lists,
   emptyMessage,
+  filterListId,
   onAssign,
   onRemoveFromList,
+  onBulkRemoveFromList,
 }: {
   rows: SubscriberRow[];
   lists: ListRow[];
   emptyMessage: string;
-  // Server action: bulk-assign selected subscribers to a list.
+  // When set, the table is currently filtered to a specific list, which
+  // unlocks the "Remove from this list" bulk action.
+  filterListId: string | null;
   onAssign: (subscriberIds: string[], listId: string) => Promise<void>;
-  // Server action: remove a single subscriber from a list (used for the
-  // tiny × on each list pill in a row).
   onRemoveFromList: (subscriberId: string, listId: string) => Promise<void>;
+  onBulkRemoveFromList: (
+    subscriberIds: string[],
+    listId: string,
+  ) => Promise<void>;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [picker, setPicker] = useState(false);
+  const [detail, setDetail] = useState<SubscriberRow | null>(null);
   const [, startTransition] = useTransition();
 
   const listsById = useMemo(
@@ -112,13 +133,25 @@ export function SubscribersTable({
     });
   }
 
+  function bulkRemove() {
+    if (!filterListId) return;
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (
+      !confirm(
+        `Remove ${ids.length} subscriber${ids.length === 1 ? "" : "s"} from this list?`,
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      await onBulkRemoveFromList(ids, filterListId);
+      clearSelection();
+    });
+  }
+
   return (
     <div className="space-y-3">
-      {/*
-        Selection toolbar — sticks to the top of the table when at
-        least one row is selected. Disabled state when no lists exist
-        is handled below in the dialog itself.
-      */}
       {someSelected ? (
         <div className="border-foreground/15 bg-foreground/5 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
           <span className="tabular-nums">
@@ -140,6 +173,17 @@ export function SubscribersTable({
               <ListPlus className="size-4" />
               Add to list
             </Button>
+            {filterListId ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={bulkRemove}
+              >
+                <ListMinus className="size-4" />
+                Remove from this list
+              </Button>
+            ) : null}
             <Button
               type="button"
               size="sm"
@@ -162,7 +206,6 @@ export function SubscribersTable({
                   aria-label="Select all"
                   checked={allSelected}
                   onChange={toggleAll}
-                  // Indeterminate state when some but not all are selected
                   ref={(el) => {
                     if (el) {
                       el.indeterminate = !allSelected && someSelected;
@@ -194,7 +237,15 @@ export function SubscribersTable({
                       onChange={() => toggleOne(r.id)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{r.email}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => setDetail(r)}
+                      className="hover:text-foreground/70 font-medium underline-offset-2 hover:underline"
+                    >
+                      {r.email}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {r.name ?? "—"}
                   </TableCell>
@@ -221,10 +272,14 @@ export function SubscribersTable({
                     {r.source_slug ?? "—"}
                   </TableCell>
                   <TableCell className="text-right text-xs tabular-nums">
-                    {r.form_submissions_count > 0 ? (
-                      <span className="bg-muted text-foreground rounded-full px-2 py-0.5">
-                        {r.form_submissions_count}
-                      </span>
+                    {r.form_submissions.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setDetail(r)}
+                        className="bg-muted text-foreground hover:bg-muted/70 rounded-full px-2 py-0.5 transition-colors"
+                      >
+                        {r.form_submissions.length}
+                      </button>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -307,6 +362,26 @@ export function SubscribersTable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Detail drawer (Dialog used as a drawer for v1) */}
+      <Dialog
+        open={detail !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetail(null);
+        }}
+      >
+        <DialogContent>
+          {detail ? (
+            <SubscriberDetail
+              row={detail}
+              lists={lists}
+              listsById={listsById}
+              onRemoveFromList={onRemoveFromList}
+              onAssign={onAssign}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -360,6 +435,182 @@ function SubscriberListPills({
           </button>
         </span>
       ))}
+    </div>
+  );
+}
+
+function SubscriberDetail({
+  row,
+  lists,
+  listsById,
+  onRemoveFromList,
+  onAssign,
+}: {
+  row: SubscriberRow;
+  lists: ListRow[];
+  listsById: Map<string, ListRow>;
+  onRemoveFromList: (subscriberId: string, listId: string) => Promise<void>;
+  onAssign: (subscriberIds: string[], listId: string) => Promise<void>;
+}) {
+  const [, startTransition] = useTransition();
+  // Lists the subscriber isn't already in, for the inline picker.
+  const availableLists = lists.filter((l) => !row.list_ids.includes(l.id));
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="break-all">{row.email}</DialogTitle>
+        <DialogDescription>
+          {row.name ?? "No name on file"}
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-5 text-sm">
+        {/* Identity / status grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Status">
+            <span
+              className={cn(
+                "inline-flex rounded-full px-2 py-0.5 text-xs",
+                STATUS_STYLES[row.status] ?? "bg-muted text-muted-foreground",
+              )}
+            >
+              {row.status}
+            </span>
+          </Field>
+          <Field label="Subscribed">
+            {new Date(row.created_at).toLocaleString()}
+          </Field>
+          {row.confirmed_at ? (
+            <Field label="Confirmed">
+              {new Date(row.confirmed_at).toLocaleString()}
+            </Field>
+          ) : null}
+          {row.unsubscribed_at ? (
+            <Field label="Unsubscribed">
+              {new Date(row.unsubscribed_at).toLocaleString()}
+            </Field>
+          ) : null}
+          <Field label="Source page">
+            {row.source_slug ? (
+              <span className="font-mono text-xs">{row.source_slug}</span>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </Field>
+          {row.source_block_id ? (
+            <Field label="Source block">
+              <span className="font-mono text-xs">
+                {row.source_block_id.slice(0, 8)}…
+              </span>
+            </Field>
+          ) : null}
+        </div>
+
+        {/* Lists */}
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+            Lists
+          </p>
+          {row.list_ids.length === 0 ? (
+            <p className="text-muted-foreground text-xs">
+              Not in any lists yet.
+            </p>
+          ) : (
+            <SubscriberListPills
+              subscriberId={row.id}
+              listIds={row.list_ids}
+              listsById={listsById}
+              onRemove={onRemoveFromList}
+            />
+          )}
+          {availableLists.length > 0 ? (
+            <div>
+              <select
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  startTransition(async () => {
+                    await onAssign([row.id], v);
+                  });
+                  e.target.value = "";
+                }}
+                defaultValue=""
+                className="border-border bg-background mt-1 h-8 rounded-md border px-2 text-xs"
+              >
+                <option value="">+ Add to a list…</option>
+                {availableLists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Form submissions */}
+        {row.form_submissions.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+              Form submissions ({row.form_submissions.length})
+            </p>
+            <div className="space-y-2">
+              {row.form_submissions
+                .slice()
+                .reverse()
+                .map((s, i) => (
+                  <details
+                    key={i}
+                    open={i === 0}
+                    className="border-border rounded-md border"
+                  >
+                    <summary className="hover:bg-muted/40 cursor-pointer px-3 py-2 text-xs">
+                      <span className="font-medium">
+                        {new Date(s.submitted_at).toLocaleString()}
+                      </span>
+                      <span className="text-muted-foreground ml-2">
+                        · {s.answers.length} answer
+                        {s.answers.length === 1 ? "" : "s"}
+                      </span>
+                    </summary>
+                    <dl className="divide-border space-y-0 divide-y">
+                      {s.answers.map((a, j) => (
+                        <div key={j} className="px-3 py-2">
+                          <dt className="text-muted-foreground text-xs">
+                            {a.label}
+                          </dt>
+                          <dd className="mt-0.5 text-sm whitespace-pre-line break-words">
+                            {Array.isArray(a.value)
+                              ? a.value.join(", ")
+                              : a.value === null || a.value === undefined
+                                ? "—"
+                                : String(a.value)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
+                ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-muted-foreground text-xs">{label}</p>
+      <div className="text-sm">{children}</div>
     </div>
   );
 }

@@ -107,6 +107,31 @@ export async function updatePageMeta(pageId: string, formData: FormData) {
     );
   }
 
+  // Sync the page's default lists. Form fields are named
+  // "default_list_<list_id>" and are set ("on") when checked.
+  const { data: ownedLists } = await supabase
+    .from("lists")
+    .select("id")
+    .eq("profile_id", user.id);
+  const ownedListIds = (ownedLists ?? []).map((l) => l.id);
+  const wantedListIds = ownedListIds.filter(
+    (id) => formData.get(`default_list_${id}`) === "on",
+  );
+
+  // Replace existing rows with the new set. For a small number of
+  // lists this is simpler than diffing (and atomic-enough for our use).
+  await supabase
+    .from("page_default_lists")
+    .delete()
+    .eq("page_id", pageId);
+  if (wantedListIds.length > 0) {
+    const rows = wantedListIds.map((list_id) => ({
+      page_id: pageId,
+      list_id,
+    }));
+    await supabase.from("page_default_lists").insert(rows);
+  }
+
   revalidatePath("/dashboard/pages");
   revalidatePath(`/dashboard/pages/${pageId}`);
   revalidatePath("/[username]", "page");

@@ -7,12 +7,14 @@ import { cn } from "@/lib/utils";
 import { Download, Search } from "lucide-react";
 import {
   SubscribersTable,
+  type FormSubmission,
   type ListRow,
   type SubscriberRow,
 } from "@/components/dashboard/subscribers-table";
 import {
   assignSubscribersToList,
   removeSubscriberFromList,
+  removeSubscribersFromList,
 } from "./actions";
 
 export const metadata = { title: "Subscribers — Contenomics" };
@@ -24,6 +26,7 @@ type SearchParams = {
   q?: string;
   status?: string;
   list?: string;
+  page?: string;
   error?: string;
 };
 
@@ -40,9 +43,16 @@ export default async function SubscribersPage({
 
   const q = (searchParams.q ?? "").trim();
   const status = searchParams.status;
-  const listFilter = searchParams.list;
+  const listFilter = searchParams.list ?? null;
 
-  // Lists are needed for the picker AND for rendering pills.
+  // Parse + clamp the page number to a sane range.
+  const rawPage = parseInt(searchParams.page ?? "1", 10);
+  const pageNum =
+    Number.isFinite(rawPage) && rawPage >= 1 ? Math.min(rawPage, 10000) : 1;
+  const from = (pageNum - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  // Lists for the picker, pills, and filter dropdown.
   const { data: listsRaw } = await supabase
     .from("lists")
     .select("id, name, color")
@@ -54,8 +64,7 @@ export default async function SubscribersPage({
     color: l.color,
   }));
 
-  // If filtering by list, first fetch the subscriber ids in that list
-  // (RLS scopes both tables to the owner so this is safe).
+  // Resolve subscriber-id whitelist when filtering by list.
   let listSubscriberIds: string[] | null = null;
   if (listFilter) {
     const { data: junction } = await supabase
@@ -63,34 +72,33 @@ export default async function SubscribersPage({
       .select("subscriber_id")
       .eq("list_id", listFilter);
     listSubscriberIds = (junction ?? []).map((j) => j.subscriber_id);
-    // Empty list -> no rows match
-    if (listSubscriberIds.length === 0) {
-      // Short-circuit to an empty result so we don't issue a `.in('id', [])`
-      // query (Supabase treats that as "no filter" for some clients).
-    }
   }
 
   let query = supabase
     .from("subscribers")
     .select(
-      "id, email, name, status, source_page_id, created_at, metadata",
+      "id, email, name, status, source_page_id, source_block_id, confirmed_at, unsubscribed_at, created_at, metadata",
       { count: "exact" },
     )
     .eq("profile_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(PAGE_SIZE);
+    .range(from, to);
 
   if (q) {
     query = query.or(`email.ilike.%${q}%,name.ilike.%${q}%`);
   }
-  const validStatuses = ["pending", "confirmed", "unsubscribed", "bounced"] as const;
+  const validStatuses = [
+    "pending",
+    "confirmed",
+    "unsubscribed",
+    "bounced",
+  ] as const;
   type ValidStatus = (typeof validStatuses)[number];
   if (status && (validStatuses as readonly string[]).includes(status)) {
     query = query.eq("status", status as ValidStatus);
   }
   if (listSubscriberIds) {
     if (listSubscriberIds.length === 0) {
-      // Force empty result
       query = query.eq("id", "00000000-0000-0000-0000-000000000000");
     } else {
       query = query.in("id", listSubscriberIds);
@@ -112,7 +120,7 @@ export default async function SubscribersPage({
     pages?.forEach((p) => pageSlugByIdMap.set(p.id, p.slug));
   }
 
-  // List memberships for the visible subscribers.
+  // List memberships for visible rows.
   const subIds = (subs ?? []).map((s) => s.id);
   const membershipsBySub = new Map<string, string[]>();
   if (subIds.length > 0) {
@@ -130,26 +138,45 @@ export default async function SubscribersPage({
   const rows: SubscriberRow[] = (subs ?? []).map((s) => {
     const meta = (s.metadata as { form_submissions?: unknown[] } | null) ?? {};
     const submissions = Array.isArray(meta.form_submissions)
-      ? meta.form_submissions.length
-      : 0;
+      ? (meta.form_submissions as FormSubmission[])
+      : [];
     return {
       id: s.id,
       email: s.email,
       name: s.name,
       status: s.status,
       source_page_id: s.source_page_id,
+      source_block_id: s.source_block_id,
       source_slug: s.source_page_id
-        ? pageSlugByIdMap.get(s.source_page_id) ?? null
+        ? (pageSlugByIdMap.get(s.source_page_id) ?? null)
         : null,
       created_at: s.created_at,
-      form_submissions_count: submissions,
+      confirmed_at: s.confirmed_at,
+      unsubscribed_at: s.unsubscribed_at,
+      form_submissions: submissions,
       list_ids: membershipsBySub.get(s.id) ?? [],
     };
   });
 
   const activeListName = listFilter
-    ? lists.find((l) => l.id === listFilter)?.name ?? "Unknown list"
+    ? (lists.find((l) => l.id === listFilter)?.name ?? "Unknown list")
     : null;
+
+  const totalCount = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const showingFrom = totalCount === 0 ? 0 : from + 1;
+  const showingTo = Math.min(from + rows.length, totalCount);
+
+  // Build a query string for prev/next links that preserves filters.
+  const buildHref = (page: number) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (listFilter) params.set("list", listFilter);
+    if (page > 1) params.set("page", String(page));
+    const qs = params.toString();
+    return `/dashboard/subscribers${qs ? `?${qs}` : ""}`;
+  };
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -158,9 +185,9 @@ export default async function SubscribersPage({
           <h1 className="text-2xl font-semibold tracking-tight">Subscribers</h1>
           <p className="text-muted-foreground text-sm">
             Everyone who&apos;s opted in via your bio pages.{" "}
-            {typeof count === "number" ? (
+            {totalCount > 0 ? (
               <span>
-                {count.toLocaleString()} total
+                {totalCount.toLocaleString()} total
                 {q || status || listFilter ? " matching" : ""}.
               </span>
             ) : null}
@@ -246,6 +273,7 @@ export default async function SubscribersPage({
       <SubscribersTable
         rows={rows}
         lists={lists}
+        filterListId={listFilter}
         emptyMessage={
           q || status || listFilter
             ? "No subscribers match those filters."
@@ -253,12 +281,57 @@ export default async function SubscribersPage({
         }
         onAssign={assignSubscribersToList}
         onRemoveFromList={removeSubscriberFromList}
+        onBulkRemoveFromList={removeSubscribersFromList}
       />
 
-      {rows.length === PAGE_SIZE ? (
-        <p className="text-muted-foreground text-center text-xs">
-          Showing the most recent {PAGE_SIZE}. Pagination coming in v1.1.
-        </p>
+      {totalCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+          <span className="text-muted-foreground tabular-nums">
+            Showing {showingFrom}–{showingTo} of{" "}
+            {totalCount.toLocaleString()}
+          </span>
+          {totalPages > 1 ? (
+            <div className="flex items-center gap-1">
+              {pageNum > 1 ? (
+                <Link
+                  href={buildHref(pageNum - 1)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                  ← Prev
+                </Link>
+              ) : (
+                <span
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "pointer-events-none opacity-40",
+                  )}
+                >
+                  ← Prev
+                </span>
+              )}
+              <span className="text-muted-foreground tabular-nums px-2">
+                Page {pageNum} of {totalPages}
+              </span>
+              {pageNum < totalPages ? (
+                <Link
+                  href={buildHref(pageNum + 1)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                >
+                  Next →
+                </Link>
+              ) : (
+                <span
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "sm" }),
+                    "pointer-events-none opacity-40",
+                  )}
+                >
+                  Next →
+                </span>
+              )}
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

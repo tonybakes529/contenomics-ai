@@ -304,6 +304,37 @@ export interface Database {
           },
         ];
       };
+      page_default_lists: {
+        Row: {
+          page_id: string;
+          list_id: string;
+          created_at: string;
+        };
+        Insert: {
+          page_id: string;
+          list_id: string;
+          created_at?: string;
+        };
+        Update: {
+          page_id?: string;
+          list_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "page_default_lists_page_id_fkey";
+            columns: ["page_id"];
+            referencedRelation: "pages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "page_default_lists_list_id_fkey";
+            columns: ["list_id"];
+            referencedRelation: "lists";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clicks: {
         Row: {
           id: string;

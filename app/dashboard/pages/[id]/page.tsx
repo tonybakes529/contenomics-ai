@@ -72,6 +72,21 @@ export default async function PageEditor({
     .eq("page_id", page.id)
     .order("position", { ascending: true });
 
+  // Lists owned by this user + which ones are currently default for this page.
+  const { data: lists } = await supabase
+    .from("lists")
+    .select("id, name, color")
+    .eq("profile_id", user.id)
+    .order("name", { ascending: true });
+
+  const { data: defaultLinks } = await supabase
+    .from("page_default_lists")
+    .select("list_id")
+    .eq("page_id", page.id);
+  const defaultListIds = new Set(
+    (defaultLinks ?? []).map((d) => d.list_id),
+  );
+
   const updatePageBound = updatePageMeta.bind(null, page.id);
   const togglePublishBound = togglePagePublish.bind(null, page.id);
   const deleteBound = deletePage.bind(null, page.id);
@@ -267,6 +282,47 @@ export default async function PageEditor({
                 name="is_default"
                 defaultChecked={page.is_default}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm">Auto-add new subscribers to</Label>
+              {(lists ?? []).length === 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  No lists yet.{" "}
+                  <Link
+                    href="/dashboard/lists"
+                    className="text-foreground underline"
+                  >
+                    Create one
+                  </Link>{" "}
+                  to auto-tag people who sign up via this page.
+                </p>
+              ) : (
+                <div className="border-border space-y-1.5 rounded-md border p-3">
+                  {(lists ?? []).map((l) => (
+                    <label
+                      key={l.id}
+                      className="hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded p-1.5 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        name={`default_list_${l.id}`}
+                        defaultChecked={defaultListIds.has(l.id)}
+                      />
+                      <span
+                        className="size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: l.color ?? "#9ca3af" }}
+                        aria-hidden
+                      />
+                      <span>{l.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Anyone who submits an email or form on this page will join
+                these lists in addition to whatever the block specifies.
+              </p>
             </div>
 
             <div className="flex justify-end pt-2">
