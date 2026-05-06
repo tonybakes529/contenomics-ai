@@ -40,6 +40,7 @@ export type EditorBlock = {
 const TYPE_LABELS: Record<string, string> = {
   hero: "Hero",
   link: "Link",
+  button: "Button",
   header: "Heading",
   text: "Text",
   features: "Features grid",
@@ -50,6 +51,7 @@ const TYPE_LABELS: Record<string, string> = {
   cta: "Call to action",
   email_form: "Email form",
   video_embed: "Video",
+  embed: "Embed (Calendly, etc.)",
   social_icons: "Social icons",
   image: "Image",
   divider: "Divider",
@@ -60,10 +62,12 @@ const TYPE_LABELS: Record<string, string> = {
 // landing sections. Order roughly by what creators reach for most.
 const TYPE_ORDER = [
   "link",
+  "button",
   "header",
   "text",
   "email_form",
   "video_embed",
+  "embed",
   "social_icons",
   "image",
   "divider",
@@ -141,6 +145,12 @@ function summarize(block: EditorBlock): string {
       const filled = items.filter((i) => i.value).length;
       return `${filled} stat${filled === 1 ? "" : "s"}`;
     }
+    case "button":
+      return (c.text as string) || (c.url as string) || "(empty button)";
+    case "embed":
+      return (
+        (c.title as string) || (c.url as string) || "(empty embed)"
+      );
     default:
       return "—";
   }

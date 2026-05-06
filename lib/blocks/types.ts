@@ -44,6 +44,9 @@ export type HeroConfig = {
   cta_text?: string;
   cta_url?: string;
   image_url?: string;
+  // Optional embedded video shown between subheading and CTA. Accepts
+  // YouTube, Vimeo, or any direct embed URL — passed through toEmbedUrl().
+  video_url?: string;
   align?: "left" | "center";
 };
 
@@ -52,6 +55,34 @@ export type TestimonialConfig = {
   author: string;
   role?: string;
   avatar_url?: string;
+  // Optional video testimonial. When set, replaces the avatar with an
+  // embedded video. Aspect determines whether to render portrait (9:16,
+  // for vertical phone-style clips) or landscape (16:9, default).
+  video_url?: string;
+  video_aspect?: "9:16" | "16:9";
+};
+
+// Standalone CTA button — a single button creators can drop anywhere
+// in a page. Distinct from `cta` (which is a full-width dark band) and
+// from `link` (a bio-style outline pill); this one is the primary
+// "Book a call" / "Get started" affordance.
+export type ButtonConfig = {
+  text: string;
+  url: string;
+  style?: "primary" | "outline";
+  align?: "left" | "center" | "right";
+};
+
+// Generic iframe embed for things like Calendly, Substack signup,
+// Tally form, etc. Accepts the embed URL directly.
+export type EmbedConfig = {
+  url: string;
+  title?: string;
+  // Aspect ratio. Use "auto" for fixed-height embeds where you want
+  // the iframe to size to its content (rare; most need an aspect).
+  aspect?: "16:9" | "9:16" | "1:1" | "4:3" | "auto";
+  // Pixel height when aspect is "auto" (e.g. Calendly inline ~720).
+  height?: number;
 };
 
 export type FeatureItem = {
@@ -125,7 +156,9 @@ export type AnyBlockConfig =
   | CtaConfig
   | FaqConfig
   | PricingConfig
-  | StatsConfig;
+  | StatsConfig
+  | ButtonConfig
+  | EmbedConfig;
 
 // Convert YouTube/Vimeo watch URL to embeddable URL.
 export function toEmbedUrl(url: string): string {

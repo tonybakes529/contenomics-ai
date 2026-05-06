@@ -22,6 +22,8 @@ const VALID_TYPES = [
   "faq",
   "pricing",
   "stats",
+  "button",
+  "embed",
 ] as const;
 type BlockType = (typeof VALID_TYPES)[number];
 
@@ -100,6 +102,20 @@ function defaultConfig(type: BlockType): Json {
         heading: "",
         items: [],
       } as Json;
+    case "button":
+      return {
+        text: "Book a call",
+        url: "",
+        style: "primary",
+        align: "center",
+      } as Json;
+    case "embed":
+      return {
+        url: "",
+        title: "",
+        aspect: "16:9",
+        height: 720,
+      } as Json;
   }
 }
 
@@ -148,20 +164,31 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
         cta_text: get("cta_text") || undefined,
         cta_url: get("cta_url") || undefined,
         image_url: get("image_url") || undefined,
+        video_url: get("video_url") || undefined,
         align: get("align") === "left" ? "left" : "center",
       } as Json;
 
     case "testimonial":
       return {
-        quote: get("quote"),
+        quote: get("quote") || undefined,
         author: get("author"),
         role: get("role") || undefined,
         avatar_url: get("avatar_url") || undefined,
+        video_url: get("video_url") || undefined,
+        video_aspect:
+          get("video_aspect") === "9:16" ? "9:16" : "16:9",
       } as Json;
 
     case "features": {
       const items: { title: string; description?: string; icon?: string }[] = [];
-      for (let i = 0; i < 6; i++) {
+      // The form supplies a hidden feature_count so we know exactly how
+      // many slots to read (dynamic add/remove). Cap at a sane maximum
+      // to defend against absurd payloads.
+      const rawCount = parseInt(get("feature_count") || "0", 10);
+      const count = Number.isFinite(rawCount)
+        ? Math.min(Math.max(rawCount, 0), 50)
+        : 0;
+      for (let i = 0; i < count; i++) {
         const title = get(`feature_title_${i}`);
         if (!title) continue;
         items.push({
@@ -247,6 +274,32 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
       return {
         heading: get("heading") || undefined,
         items,
+      } as Json;
+    }
+
+    case "button":
+      return {
+        text: get("text") || "Book a call",
+        url: get("url"),
+        style: get("style") === "outline" ? "outline" : "primary",
+        align:
+          get("align") === "left"
+            ? "left"
+            : get("align") === "right"
+              ? "right"
+              : "center",
+      } as Json;
+
+    case "embed": {
+      const aspect = get("aspect");
+      const validAspects = ["16:9", "9:16", "1:1", "4:3", "auto"];
+      const heightStr = get("height");
+      const heightNum = parseInt(heightStr, 10);
+      return {
+        url: get("url"),
+        title: get("title") || undefined,
+        aspect: validAspects.includes(aspect) ? aspect : "16:9",
+        height: Number.isFinite(heightNum) ? heightNum : undefined,
       } as Json;
     }
   }

@@ -27,7 +27,9 @@ export type BlockType =
   | "cta"
   | "faq"
   | "pricing"
-  | "stats";
+  | "stats"
+  | "button"
+  | "embed";
 
 export type PageTemplate = "bio" | "landing";
 

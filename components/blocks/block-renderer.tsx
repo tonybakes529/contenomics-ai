@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   toEmbedUrl,
+  type ButtonConfig,
   type CtaConfig,
   type EmailFormConfig,
+  type EmbedConfig,
   type FaqConfig,
   type FeaturesConfig,
   type HeaderConfig,
@@ -115,6 +117,7 @@ const WIDE_BLOCK_TYPES = new Set([
   "faq",
   "video_embed",
   "image",
+  "embed",
 ]);
 
 // Block types that already render edge-to-edge with their own background
@@ -212,6 +215,10 @@ function BlockItem({
       return <hr className="border-border my-2" />;
     case "product":
       return <ProductBlock block={block} />;
+    case "button":
+      return <ButtonBlock block={block} />;
+    case "embed":
+      return <EmbedBlock block={block} />;
     default:
       return null;
   }
@@ -455,17 +462,25 @@ function HeroBlock({ block }: { block: RendererBlock }) {
   const cfg = block.config as HeroConfig;
   if (!cfg?.heading) return null;
   const align = cfg.align ?? "center";
+
+  // Hero supports either a side image (left-aligned only) OR an inline
+  // video between subheading and CTA. Video takes precedence if both
+  // are set so the embed is what creators actually see.
+  const heroVideoEmbed = cfg.video_url ? toEmbedUrl(cfg.video_url) : null;
+
   return (
     <section
       className={cn(
-        "w-full py-6 sm:py-12",
+        "w-full",
         align === "center" ? "text-center" : "text-left",
       )}
     >
       <div
         className={cn(
           "grid items-center gap-8 sm:gap-12",
-          cfg.image_url && align !== "center" ? "sm:grid-cols-2" : "",
+          cfg.image_url && align !== "center" && !heroVideoEmbed
+            ? "sm:grid-cols-2"
+            : "",
         )}
       >
         <div
@@ -482,6 +497,19 @@ function HeroBlock({ block }: { block: RendererBlock }) {
               {cfg.subheading}
             </p>
           ) : null}
+
+          {heroVideoEmbed ? (
+            <div className="mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-xl border border-zinc-200/70 shadow-sm">
+              <iframe
+                src={heroVideoEmbed}
+                title="Hero video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="h-full w-full border-0"
+              />
+            </div>
+          ) : null}
+
           {cfg.cta_url && cfg.cta_text ? (
             <div
               className={cn(
@@ -501,7 +529,7 @@ function HeroBlock({ block }: { block: RendererBlock }) {
             </div>
           ) : null}
         </div>
-        {cfg.image_url ? (
+        {cfg.image_url && !heroVideoEmbed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cfg.image_url}
@@ -516,32 +544,71 @@ function HeroBlock({ block }: { block: RendererBlock }) {
 
 function TestimonialBlock({ block }: { block: RendererBlock }) {
   const cfg = block.config as TestimonialConfig;
-  if (!cfg?.quote) return null;
+  // Render if there's either a quote or a video — both modes are valid.
+  if (!cfg?.quote && !cfg?.video_url) return null;
+
+  const videoEmbed = cfg.video_url ? toEmbedUrl(cfg.video_url) : null;
+  const aspect = cfg.video_aspect ?? "16:9";
+
+  // Portrait videos cap at a much narrower width so they don't dominate.
+  const videoMaxWidth =
+    aspect === "9:16" ? "max-w-[280px] sm:max-w-[320px]" : "max-w-2xl";
+
+  // Whole testimonial is narrow by default — testimonials should never
+  // span the full landing-page width.
   return (
-    <figure className="border-border bg-background w-full rounded-2xl border p-6 shadow-sm sm:p-8">
-      <blockquote className="text-base leading-relaxed sm:text-lg">
-        &ldquo;{cfg.quote}&rdquo;
-      </blockquote>
-      <figcaption className="mt-4 flex items-center gap-3">
-        {cfg.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={cfg.avatar_url}
-            alt=""
-            className="size-10 rounded-full object-cover"
+    <figure className="border-border bg-background mx-auto w-full max-w-2xl rounded-2xl border p-6 shadow-sm sm:p-8">
+      {videoEmbed ? (
+        <div
+          className={cn(
+            "mx-auto mb-4 overflow-hidden rounded-xl",
+            aspect === "9:16" ? "aspect-[9/16]" : "aspect-video",
+            videoMaxWidth,
+          )}
+        >
+          <iframe
+            src={videoEmbed}
+            title={`Testimonial — ${cfg.author || "video"}`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="h-full w-full border-0"
           />
-        ) : (
-          <div className="bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-full text-xs font-semibold">
-            {(cfg.author ?? "?").slice(0, 2).toUpperCase()}
-          </div>
-        )}
-        <div className="text-sm">
-          <p className="font-medium">{cfg.author}</p>
-          {cfg.role ? (
-            <p className="text-muted-foreground text-xs">{cfg.role}</p>
-          ) : null}
         </div>
-      </figcaption>
+      ) : null}
+
+      {cfg.quote ? (
+        <blockquote className="text-base leading-relaxed sm:text-lg">
+          &ldquo;{cfg.quote}&rdquo;
+        </blockquote>
+      ) : null}
+
+      {cfg.author ? (
+        <figcaption
+          className={cn(
+            "flex items-center gap-3",
+            cfg.quote || videoEmbed ? "mt-4" : "",
+          )}
+        >
+          {cfg.avatar_url && !videoEmbed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cfg.avatar_url}
+              alt=""
+              className="size-10 rounded-full object-cover"
+            />
+          ) : !videoEmbed ? (
+            <div className="bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-full text-xs font-semibold">
+              {(cfg.author ?? "?").slice(0, 2).toUpperCase()}
+            </div>
+          ) : null}
+          <div className="text-sm">
+            <p className="font-medium">{cfg.author}</p>
+            {cfg.role ? (
+              <p className="text-muted-foreground text-xs">{cfg.role}</p>
+            ) : null}
+          </div>
+        </figcaption>
+      ) : null}
     </figure>
   );
 }
@@ -771,5 +838,86 @@ function StatsBlock({ block }: { block: RendererBlock }) {
         ))}
       </div>
     </section>
+  );
+}
+
+// Standalone CTA button. Uniform styling so creators can drop multiple
+// across a page without each looking different. Distinct from `cta`
+// (full dark band) and `link` (bio outline pill).
+function ButtonBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as ButtonConfig;
+  if (!cfg?.text || !cfg?.url) return null;
+
+  const align = cfg.align ?? "center";
+  const isPrimary = (cfg.style ?? "primary") === "primary";
+
+  const justify =
+    align === "left" ? "justify-start" : align === "right" ? "justify-end" : "justify-center";
+
+  return (
+    <div className={cn("flex w-full", justify)}>
+      <a
+        href={cfg.url}
+        onClick={() => fireTrackClick(block.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "inline-flex h-11 items-center rounded-xl px-6 text-sm font-medium transition-opacity hover:opacity-90",
+          isPrimary
+            ? "bg-foreground text-background shadow-sm"
+            : "border-border bg-background text-foreground border shadow-sm",
+        )}
+      >
+        {cfg.text}
+      </a>
+    </div>
+  );
+}
+
+// Generic iframe embed. Uniform styling — rounded card with border —
+// so any third-party embed (Calendly, Substack, Tally, Twitter, etc.)
+// looks like it belongs on the page.
+function EmbedBlock({ block }: { block: RendererBlock }) {
+  const cfg = block.config as EmbedConfig;
+  if (!cfg?.url) return null;
+
+  const aspect = cfg.aspect ?? "16:9";
+  const aspectClass =
+    aspect === "9:16"
+      ? "aspect-[9/16]"
+      : aspect === "1:1"
+        ? "aspect-square"
+        : aspect === "4:3"
+          ? "aspect-[4/3]"
+          : aspect === "auto"
+            ? ""
+            : "aspect-video";
+
+  // For "auto" aspect, fall back to a sensible fixed pixel height.
+  const fixedHeightStyle =
+    aspect === "auto" ? { height: cfg.height ?? 720 } : undefined;
+
+  // Portrait embeds cap at a narrower width.
+  const widthCap =
+    aspect === "9:16" ? "max-w-[360px]" : aspect === "1:1" ? "max-w-xl" : "max-w-4xl";
+
+  return (
+    <div
+      className={cn(
+        "border-border mx-auto w-full overflow-hidden rounded-xl border bg-white shadow-sm",
+        widthCap,
+        aspectClass,
+      )}
+      style={fixedHeightStyle}
+    >
+      <iframe
+        src={cfg.url}
+        title={cfg.title ?? "Embedded content"}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowFullScreen
+        loading="lazy"
+        className="h-full w-full border-0"
+      />
+    </div>
   );
 }

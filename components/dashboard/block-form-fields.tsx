@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Plus, Trash2 } from "lucide-react";
 
 const KNOWN_PLATFORMS = [
   "youtube",
@@ -207,6 +210,21 @@ export function BlockFormFields({
               rows={2}
             />
           </Field>
+          <Field
+            id="video_url"
+            label="Video URL (optional, YouTube/Vimeo)"
+          >
+            <Input
+              id="video_url"
+              name="video_url"
+              type="url"
+              defaultValue={get("video_url")}
+              placeholder="https://youtube.com/watch?v=…"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Renders between the subheading and the button.
+            </p>
+          </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field id="cta_text" label="Button text (optional)">
               <Input id="cta_text" name="cta_text" defaultValue={get("cta_text")} />
@@ -227,6 +245,10 @@ export function BlockFormFields({
               type="url"
               defaultValue={get("image_url")}
             />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Used only when no video is set. Image renders to the right
+              when alignment is &quot;Left&quot;.
+            </p>
           </Field>
           <Field id="align" label="Alignment">
             <select
@@ -245,13 +267,12 @@ export function BlockFormFields({
     case "testimonial":
       return (
         <>
-          <Field id="quote" label="Quote">
+          <Field id="quote" label="Quote (optional if you set a video)">
             <Textarea
               id="quote"
               name="quote"
               defaultValue={get("quote")}
               rows={3}
-              required
             />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -267,78 +288,59 @@ export function BlockFormFields({
               />
             </Field>
           </div>
-          <Field id="avatar_url" label="Avatar URL (optional)">
+          <Field id="video_url" label="Video URL (optional, YouTube/Vimeo)">
             <Input
-              id="avatar_url"
-              name="avatar_url"
+              id="video_url"
+              name="video_url"
               type="url"
-              defaultValue={get("avatar_url")}
+              defaultValue={get("video_url")}
+              placeholder="https://youtube.com/watch?v=…"
             />
+            <p className="text-muted-foreground mt-1 text-xs">
+              When set, replaces the avatar. Pick the right aspect for
+              the source clip.
+            </p>
           </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="video_aspect" label="Video aspect">
+              <select
+                id="video_aspect"
+                name="video_aspect"
+                defaultValue={get("video_aspect") || "16:9"}
+                className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+              >
+                <option value="16:9">16:9 (landscape)</option>
+                <option value="9:16">9:16 (vertical / Shorts / TikTok)</option>
+              </select>
+            </Field>
+            <Field id="avatar_url" label="Avatar URL (used if no video)">
+              <Input
+                id="avatar_url"
+                name="avatar_url"
+                type="url"
+                defaultValue={get("avatar_url")}
+              />
+            </Field>
+          </div>
         </>
       );
 
-    case "features": {
-      const items = Array.isArray(c.items)
-        ? (c.items as { title?: string; description?: string; icon?: string }[])
-        : [];
-      const slots = 6;
+    case "features":
       return (
-        <div className="space-y-4">
-          <Field id="heading" label="Section heading (optional)">
-            <Input id="heading" name="heading" defaultValue={get("heading")} />
-          </Field>
-          <Field id="subheading" label="Section subheading (optional)">
-            <Input id="subheading" name="subheading" defaultValue={get("subheading")} />
-          </Field>
-          <p className="text-muted-foreground text-xs">
-            Up to 6 features. Leave a row blank to skip it.
-          </p>
-          <div className="space-y-3">
-            {Array.from({ length: slots }).map((_, i) => {
-              const item = items[i] ?? {};
-              return (
-                <div
-                  key={i}
-                  className="border-border space-y-2 rounded-md border p-3"
-                >
-                  <div className="grid gap-2 sm:grid-cols-[80px_1fr]">
-                    <Field id={`feature_icon_${i}`} label="Icon" dense>
-                      <Input
-                        id={`feature_icon_${i}`}
-                        name={`feature_icon_${i}`}
-                        defaultValue={item.icon ?? ""}
-                        placeholder="🔥"
-                        maxLength={4}
-                      />
-                    </Field>
-                    <Field id={`feature_title_${i}`} label="Title" dense>
-                      <Input
-                        id={`feature_title_${i}`}
-                        name={`feature_title_${i}`}
-                        defaultValue={item.title ?? ""}
-                      />
-                    </Field>
-                  </div>
-                  <Field
-                    id={`feature_description_${i}`}
-                    label="Description"
-                    dense
-                  >
-                    <Textarea
-                      id={`feature_description_${i}`}
-                      name={`feature_description_${i}`}
-                      defaultValue={item.description ?? ""}
-                      rows={2}
-                    />
-                  </Field>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <FeaturesEditor
+          heading={get("heading")}
+          subheading={get("subheading")}
+          initial={
+            Array.isArray(c.items)
+              ? (c.items as {
+                  title?: string;
+                  description?: string;
+                  icon?: string;
+                }[])
+              : []
+          }
+        />
       );
-    }
 
     case "cta":
       return (
@@ -567,9 +569,238 @@ export function BlockFormFields({
       );
     }
 
+    case "button":
+      return (
+        <>
+          <Field id="text" label="Button text">
+            <Input
+              id="text"
+              name="text"
+              defaultValue={get("text") || "Book a call"}
+              required
+            />
+          </Field>
+          <Field id="url" label="Button URL">
+            <Input
+              id="url"
+              name="url"
+              type="url"
+              defaultValue={get("url")}
+              required
+              placeholder="https://cal.com/yourname"
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="style" label="Style">
+              <select
+                id="style"
+                name="style"
+                defaultValue={get("style") || "primary"}
+                className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+              >
+                <option value="primary">Primary (filled)</option>
+                <option value="outline">Outline</option>
+              </select>
+            </Field>
+            <Field id="align" label="Alignment">
+              <select
+                id="align"
+                name="align"
+                defaultValue={get("align") || "center"}
+                className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+              >
+                <option value="center">Center</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+              </select>
+            </Field>
+          </div>
+        </>
+      );
+
+    case "embed":
+      return (
+        <>
+          <Field id="url" label="Embed URL">
+            <Input
+              id="url"
+              name="url"
+              type="url"
+              defaultValue={get("url")}
+              required
+              placeholder="https://cal.com/yourname or any iframe-able URL"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Paste the iframe src directly (e.g. Calendly inline URL,
+              Tally form URL, Substack embed URL).
+            </p>
+          </Field>
+          <Field id="title" label="Title (for accessibility)">
+            <Input id="title" name="title" defaultValue={get("title")} />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="aspect" label="Aspect ratio">
+              <select
+                id="aspect"
+                name="aspect"
+                defaultValue={get("aspect") || "16:9"}
+                className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+              >
+                <option value="16:9">16:9 (default)</option>
+                <option value="4:3">4:3</option>
+                <option value="1:1">1:1 (square)</option>
+                <option value="9:16">9:16 (vertical)</option>
+                <option value="auto">Auto (use fixed height)</option>
+              </select>
+            </Field>
+            <Field id="height" label="Height in px (auto only)">
+              <Input
+                id="height"
+                name="height"
+                type="number"
+                min={100}
+                max={2000}
+                defaultValue={get("height") || "720"}
+              />
+            </Field>
+          </div>
+        </>
+      );
+
     default:
       return null;
   }
+}
+
+// ─── Stateful features editor with add/remove ────────────────────────────
+
+type FeatureItem = { title: string; description: string; icon: string };
+
+function FeaturesEditor({
+  heading,
+  subheading,
+  initial,
+}: {
+  heading: string;
+  subheading: string;
+  initial: { title?: string; description?: string; icon?: string }[];
+}) {
+  // Always start with at least one row so creators have something to edit.
+  const seeded: FeatureItem[] =
+    initial.length > 0
+      ? initial.map((i) => ({
+          title: i.title ?? "",
+          description: i.description ?? "",
+          icon: i.icon ?? "",
+        }))
+      : [{ title: "", description: "", icon: "" }];
+
+  const [items, setItems] = useState<FeatureItem[]>(seeded);
+
+  const update = (idx: number, patch: Partial<FeatureItem>) => {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
+    );
+  };
+  const remove = (idx: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const add = () => {
+    setItems((prev) => [...prev, { title: "", description: "", icon: "" }]);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Field id="heading" label="Section heading (optional)">
+        <Input id="heading" name="heading" defaultValue={heading} />
+      </Field>
+      <Field id="subheading" label="Section subheading (optional)">
+        <Input
+          id="subheading"
+          name="subheading"
+          defaultValue={subheading}
+        />
+      </Field>
+
+      <div className="flex items-center justify-between">
+        <p className="text-muted-foreground text-xs">
+          Add as many features as you need. Empty rows are dropped on save.
+        </p>
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {items.length} item{items.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {/* Hidden field tells the action how many slots to read. */}
+      <input type="hidden" name="feature_count" value={items.length} />
+
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className="border-border space-y-2 rounded-md border p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">
+                Feature {i + 1}
+              </span>
+              {items.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1 text-xs"
+                  aria-label={`Remove feature ${i + 1}`}
+                >
+                  <Trash2 className="size-3" />
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[80px_1fr]">
+              <Field id={`feature_icon_${i}`} label="Icon" dense>
+                <Input
+                  id={`feature_icon_${i}`}
+                  name={`feature_icon_${i}`}
+                  value={item.icon}
+                  onChange={(e) => update(i, { icon: e.target.value })}
+                  placeholder="🔥"
+                  maxLength={4}
+                />
+              </Field>
+              <Field id={`feature_title_${i}`} label="Title" dense>
+                <Input
+                  id={`feature_title_${i}`}
+                  name={`feature_title_${i}`}
+                  value={item.title}
+                  onChange={(e) => update(i, { title: e.target.value })}
+                />
+              </Field>
+            </div>
+            <Field
+              id={`feature_description_${i}`}
+              label="Description"
+              dense
+            >
+              <Textarea
+                id={`feature_description_${i}`}
+                name={`feature_description_${i}`}
+                value={item.description}
+                onChange={(e) =>
+                  update(i, { description: e.target.value })
+                }
+                rows={2}
+              />
+            </Field>
+          </div>
+        ))}
+      </div>
+
+      <Button type="button" size="sm" variant="outline" onClick={add}>
+        <Plus className="size-4" />
+        Add feature
+      </Button>
+    </div>
+  );
 }
 
 function Field({
