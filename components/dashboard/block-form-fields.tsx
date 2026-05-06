@@ -560,6 +560,9 @@ export function BlockFormFields({
         </>
       );
 
+    case "form":
+      return <FormQuestionsEditor config={c} />;
+
     case "lead_magnet":
       return (
         <>
@@ -1014,6 +1017,338 @@ function toForm(
     video_url: raw.video_url ?? "",
     video_aspect: raw.video_aspect === "9:16" ? "9:16" : "16:9",
   };
+}
+
+// ─── Stateful form questions editor ──────────────────────────────────────
+
+type QuestionType =
+  | "short_text"
+  | "long_text"
+  | "email"
+  | "name"
+  | "choice"
+  | "multi_choice"
+  | "number"
+  | "url";
+
+type QuestionForm = {
+  id: string;
+  type: QuestionType;
+  label: string;
+  description: string;
+  required: boolean;
+  // Newline-separated in the editor for ease of typing.
+  options: string;
+  placeholder: string;
+};
+
+const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
+  short_text: "Short text",
+  long_text: "Long text",
+  email: "Email *",
+  name: "Name",
+  choice: "Single choice",
+  multi_choice: "Multi choice",
+  number: "Number",
+  url: "URL",
+};
+
+function newQuestion(): QuestionForm {
+  return {
+    id: `q_${Math.random().toString(36).slice(2, 10)}`,
+    type: "short_text",
+    label: "",
+    description: "",
+    required: false,
+    options: "",
+    placeholder: "",
+  };
+}
+
+function FormQuestionsEditor({ config }: { config: AnyConfig }) {
+  const get = (k: string): string => {
+    const v = config[k];
+    return typeof v === "string" ? v : "";
+  };
+
+  // Hydrate from existing config
+  const initialQuestions: QuestionForm[] = (() => {
+    const raw = Array.isArray(config.questions)
+      ? (config.questions as Partial<QuestionForm & { options?: string[] }>[])
+      : [];
+    if (raw.length === 0) {
+      return [
+        // Sensible default: at least one email question (required for submission)
+        { ...newQuestion(), type: "email", label: "Email", required: true },
+      ];
+    }
+    return raw.map((q) => ({
+      id: q.id ?? `q_${Math.random().toString(36).slice(2, 10)}`,
+      type: (q.type as QuestionType) ?? "short_text",
+      label: q.label ?? "",
+      description: q.description ?? "",
+      required: !!q.required,
+      options: Array.isArray(q.options) ? q.options.join("\n") : "",
+      placeholder: q.placeholder ?? "",
+    }));
+  })();
+
+  const [questions, setQuestions] = useState<QuestionForm[]>(initialQuestions);
+
+  const update = (idx: number, patch: Partial<QuestionForm>) =>
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)),
+    );
+  const remove = (idx: number) =>
+    setQuestions((prev) => prev.filter((_, i) => i !== idx));
+  const add = () =>
+    setQuestions((prev) => [...prev, newQuestion()]);
+  const move = (idx: number, dir: -1 | 1) => {
+    setQuestions((prev) => {
+      const next = [...prev];
+      const target = idx + dir;
+      if (target < 0 || target >= next.length) return next;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  };
+
+  const hasEmail = questions.some((q) => q.type === "email" && q.label);
+
+  return (
+    <div className="space-y-4">
+      <Field id="heading" label="Form heading">
+        <Input
+          id="heading"
+          name="heading"
+          defaultValue={get("heading") || "Quick survey"}
+          required
+        />
+      </Field>
+      <Field id="description" label="Form description (optional)">
+        <Textarea
+          id="description"
+          name="description"
+          defaultValue={get("description")}
+          rows={2}
+        />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field id="layout" label="Layout">
+          <select
+            id="layout"
+            name="layout"
+            defaultValue={get("layout") || "stepped"}
+            className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+          >
+            <option value="stepped">Stepped (one question at a time)</option>
+            <option value="single">Single page (all questions)</option>
+          </select>
+        </Field>
+        <Field id="submit_text" label="Submit button text">
+          <Input
+            id="submit_text"
+            name="submit_text"
+            defaultValue={get("submit_text") || "Submit"}
+          />
+        </Field>
+      </div>
+      <Field
+        id="redirect_url"
+        label="Redirect after submit (optional)"
+      >
+        <Input
+          id="redirect_url"
+          name="redirect_url"
+          type="url"
+          defaultValue={get("redirect_url")}
+          placeholder="https://example.com/thanks"
+        />
+        <p className="text-muted-foreground mt-1 text-xs">
+          Where to send the visitor after they submit. Leave blank to just
+          show a thank-you message.
+        </p>
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field id="thank_you_heading" label="Thank-you heading">
+          <Input
+            id="thank_you_heading"
+            name="thank_you_heading"
+            defaultValue={get("thank_you_heading") || "Thanks!"}
+          />
+        </Field>
+        <Field id="thank_you_message" label="Thank-you message">
+          <Input
+            id="thank_you_message"
+            name="thank_you_message"
+            defaultValue={get("thank_you_message")}
+            placeholder="We'll be in touch soon."
+          />
+        </Field>
+      </div>
+
+      {!hasEmail ? (
+        <div className="border-amber-300 bg-amber-50 text-amber-900 rounded-md border px-3 py-2 text-xs">
+          Add at least one <strong>Email</strong> question — submissions are
+          saved against the visitor&apos;s email so they appear in your
+          subscriber list.
+        </div>
+      ) : null}
+
+      <div className="border-border space-y-3 border-t pt-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Questions</p>
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {questions.length} question{questions.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <input type="hidden" name="question_count" value={questions.length} />
+
+        {questions.map((q, i) => (
+          <div
+            key={q.id}
+            className="border-border space-y-2 rounded-md border p-3"
+          >
+            <input
+              type="hidden"
+              name={`q_id_${i}`}
+              value={q.id}
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground text-xs">
+                Question {i + 1}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => move(i, -1)}
+                  disabled={i === 0}
+                  className="text-muted-foreground hover:text-foreground inline-flex size-6 items-center justify-center rounded transition-colors disabled:opacity-30"
+                  title="Move up"
+                  aria-label="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(i, 1)}
+                  disabled={i === questions.length - 1}
+                  className="text-muted-foreground hover:text-foreground inline-flex size-6 items-center justify-center rounded transition-colors disabled:opacity-30"
+                  title="Move down"
+                  aria-label="Move down"
+                >
+                  ↓
+                </button>
+                {questions.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => remove(i)}
+                    className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1 text-xs"
+                    aria-label={`Remove question ${i + 1}`}
+                  >
+                    <Trash2 className="size-3" />
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[160px_1fr]">
+              <Field id={`q_type_${i}`} label="Type" dense>
+                <select
+                  id={`q_type_${i}`}
+                  name={`q_type_${i}`}
+                  value={q.type}
+                  onChange={(e) =>
+                    update(i, { type: e.target.value as QuestionType })
+                  }
+                  className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+                >
+                  {(Object.keys(QUESTION_TYPE_LABELS) as QuestionType[]).map(
+                    (t) => (
+                      <option key={t} value={t}>
+                        {QUESTION_TYPE_LABELS[t]}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </Field>
+              <Field id={`q_label_${i}`} label="Question" dense>
+                <Input
+                  id={`q_label_${i}`}
+                  name={`q_label_${i}`}
+                  value={q.label}
+                  onChange={(e) => update(i, { label: e.target.value })}
+                  placeholder="What's your goal?"
+                />
+              </Field>
+            </div>
+            <Field
+              id={`q_description_${i}`}
+              label="Help text (optional)"
+              dense
+            >
+              <Input
+                id={`q_description_${i}`}
+                name={`q_description_${i}`}
+                value={q.description}
+                onChange={(e) =>
+                  update(i, { description: e.target.value })
+                }
+              />
+            </Field>
+            {q.type === "choice" || q.type === "multi_choice" ? (
+              <Field
+                id={`q_options_${i}`}
+                label="Options (one per line)"
+                dense
+              >
+                <Textarea
+                  id={`q_options_${i}`}
+                  name={`q_options_${i}`}
+                  value={q.options}
+                  onChange={(e) => update(i, { options: e.target.value })}
+                  rows={3}
+                  placeholder={"Option A\nOption B\nOption C"}
+                />
+              </Field>
+            ) : (
+              <Field
+                id={`q_placeholder_${i}`}
+                label="Placeholder (optional)"
+                dense
+              >
+                <Input
+                  id={`q_placeholder_${i}`}
+                  name={`q_placeholder_${i}`}
+                  value={q.placeholder}
+                  onChange={(e) =>
+                    update(i, { placeholder: e.target.value })
+                  }
+                />
+              </Field>
+            )}
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                name={`q_required_${i}`}
+                checked={q.required}
+                onChange={(e) =>
+                  update(i, { required: e.target.checked })
+                }
+              />
+              Required
+            </label>
+          </div>
+        ))}
+
+        <Button type="button" size="sm" variant="outline" onClick={add}>
+          <Plus className="size-4" />
+          Add question
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function Field({

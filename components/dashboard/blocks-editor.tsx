@@ -50,6 +50,7 @@ const TYPE_LABELS: Record<string, string> = {
   cta: "Call to action",
   email_form: "Email form",
   lead_magnet: "Lead magnet",
+  form: "Form / survey",
   video_embed: "Video",
   embed: "Embed (Calendly, etc.)",
   social_icons: "Social icons",
@@ -67,6 +68,7 @@ const TYPE_ORDER = [
   "text",
   "email_form",
   "lead_magnet",
+  "form",
   "video_embed",
   "embed",
   "social_icons",
@@ -170,6 +172,14 @@ function summarize(block: EditorBlock): string {
           (c.file_label as string) ||
           "(empty lead magnet)",
       );
+    case "form": {
+      const qs = Array.isArray(c.questions)
+        ? (c.questions as { label?: string }[])
+        : [];
+      const filled = qs.filter((q) => q.label).length;
+      const heading = (c.heading as string) || "Form";
+      return `${heading} · ${filled} question${filled === 1 ? "" : "s"}`;
+    }
     default:
       return "—";
   }

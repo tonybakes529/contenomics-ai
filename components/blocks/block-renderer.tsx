@@ -11,6 +11,8 @@ import {
   type EmbedConfig,
   type FaqConfig,
   type FeaturesConfig,
+  type FormConfig,
+  type FormQuestion,
   type HeaderConfig,
   type HeroConfig,
   type ImageConfig,
@@ -225,6 +227,8 @@ function BlockItem({
       return <EmbedBlock block={block} />;
     case "lead_magnet":
       return <LeadMagnetBlock block={block} pageId={pageId} />;
+    case "form":
+      return <FormBlock block={block} pageId={pageId} />;
     default:
       return null;
   }
@@ -1082,4 +1086,508 @@ function LeadMagnetBlock({
       ) : null}
     </form>
   );
+}
+
+// ─── Form (Typeform-style) ──────────────────────────────────────────────
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+function FormBlock({
+  block,
+  pageId,
+}: {
+  block: RendererBlock;
+  pageId: string;
+}) {
+  const cfg = block.config as FormConfig;
+  const questions = (cfg?.questions ?? []).filter(
+    (q) => q && q.id && q.label,
+  );
+
+  // Local answer state, keyed by question id. Strings for everything
+  // except multi_choice (string[]) and number (string in input, parsed
+  // on submit).
+  type AnswerValue = string | string[];
+  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
+  const [step, setStep] = useState(0);
+  const [status, setStatus] = useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [submittedAt, setSubmittedAt] = useState<number | null>(null);
+
+  if (questions.length === 0 || !cfg?.heading) {
+    // Editor placeholder rather than nothing — helps creators see the
+    // block exists even when empty.
+    return (
+      <div className="border-border bg-background mx-auto w-full max-w-xl rounded-2xl border p-6 text-center text-sm shadow-sm sm:p-8">
+        <p className="text-muted-foreground">
+          {cfg?.heading || "Form"}
+        </p>
+        <p className="text-muted-foreground mt-2 text-xs">
+          {questions.length === 0
+            ? "Add at least one question in the editor."
+            : "Add a heading in the editor."}
+        </p>
+      </div>
+    );
+  }
+
+  // Auto-redirect after 1.5s if a redirect_url is set, so the visitor
+  // sees the thank-you message briefly before being sent off.
+  if (status === "success" && cfg.redirect_url && submittedAt) {
+    if (typeof window !== "undefined") {
+      const elapsed = Date.now() - submittedAt;
+      const delay = Math.max(0, 1500 - elapsed);
+      window.setTimeout(() => {
+        window.location.href = cfg.redirect_url!;
+      }, delay);
+    }
+  }
+
+  const layout = cfg.layout ?? "stepped";
+  const isStepped = layout === "stepped";
+
+  function setAnswer(qid: string, value: AnswerValue) {
+    setAnswers((prev) => ({ ...prev, [qid]: value }));
+  }
+
+  function validate(qs: FormQuestion[]): string | null {
+    for (const q of qs) {
+      const v = answers[q.id];
+      const hasValue = Array.isArray(v) ? v.length > 0 : !!(v && v.trim());
+      if (q.required && !hasValue) {
+        return `"${q.label}" is required.`;
+      }
+      if (q.type === "email" && hasValue && typeof v === "string") {
+        if (!EMAIL_RE.test(v.trim())) return `"${q.label}" must be a valid email.`;
+      }
+      if (q.type === "url" && hasValue && typeof v === "string") {
+        try {
+          new URL(v);
+        } catch {
+          return `"${q.label}" must be a valid URL.`;
+        }
+      }
+      if (q.type === "number" && hasValue && typeof v === "string") {
+        if (Number.isNaN(Number(v))) {
+          return `"${q.label}" must be a number.`;
+        }
+      }
+    }
+    return null;
+  }
+
+  async function submitAll() {
+    const err = validate(questions);
+    if (err) {
+      setErrorMsg(err);
+      setStatus("error");
+      return;
+    }
+
+    // Find email from any email-type question (the first one wins).
+    const emailQ = questions.find((q) => q.type === "email");
+    const emailValue = emailQ
+      ? (answers[emailQ.id] as string | undefined)
+      : undefined;
+    if (!emailQ || !emailValue) {
+      setErrorMsg(
+        "This form is missing an email field — ask the creator to add one.",
+      );
+      setStatus("error");
+      return;
+    }
+
+    const nameQ = questions.find((q) => q.type === "name");
+    const nameValue = nameQ
+      ? (answers[nameQ.id] as string | undefined)
+      : undefined;
+
+    setStatus("submitting");
+    setErrorMsg("");
+
+    const payload = {
+      email: emailValue.trim(),
+      name: nameValue?.trim() || undefined,
+      page_id: pageId,
+      block_id: block.id,
+      list_ids: cfg.list_ids,
+      answers: questions.map((q) => {
+        const raw = answers[q.id];
+        let value: unknown = raw ?? null;
+        if (q.type === "number" && typeof raw === "string" && raw.trim()) {
+          const n = Number(raw);
+          value = Number.isFinite(n) ? n : null;
+        }
+        return {
+          question_id: q.id,
+          label: q.label,
+          type: q.type,
+          value,
+        };
+      }),
+    };
+
+    try {
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/submit-form`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Could not submit the form.");
+      }
+      fireTrackClick(block.id);
+      setStatus("success");
+      setSubmittedAt(Date.now());
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(
+        err instanceof Error ? err.message : "Something went wrong.",
+      );
+    }
+  }
+
+  // ── Success state ──
+  if (status === "success") {
+    return (
+      <div className="border-border bg-background mx-auto w-full max-w-xl rounded-2xl border p-6 text-center shadow-sm sm:p-8">
+        <p className="text-base font-semibold sm:text-lg">
+          {cfg.thank_you_heading || "Thanks — we got your answers."}
+        </p>
+        {cfg.thank_you_message ? (
+          <p className="text-muted-foreground mt-2 text-sm">
+            {cfg.thank_you_message}
+          </p>
+        ) : null}
+        {cfg.redirect_url ? (
+          <p className="text-muted-foreground mt-4 text-xs">
+            Redirecting…
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ── Stepped UI: one question per screen ──
+  if (isStepped) {
+    const current = questions[step];
+    const isLast = step === questions.length - 1;
+    const onNext = () => {
+      const err = validate([current]);
+      if (err) {
+        setErrorMsg(err);
+        return;
+      }
+      setErrorMsg("");
+      if (isLast) {
+        submitAll();
+      } else {
+        setStep((s) => s + 1);
+      }
+    };
+    return (
+      <div className="border-border bg-background mx-auto w-full max-w-xl rounded-2xl border p-6 shadow-sm sm:p-8">
+        {/* Progress + heading */}
+        <div className="space-y-2">
+          {step === 0 && cfg.heading ? (
+            <p className="text-lg font-semibold sm:text-xl">{cfg.heading}</p>
+          ) : null}
+          {step === 0 && cfg.description ? (
+            <p className="text-muted-foreground text-sm">{cfg.description}</p>
+          ) : null}
+          <div className="flex items-center gap-3">
+            <div className="bg-muted h-1 flex-1 overflow-hidden rounded-full">
+              <div
+                className="bg-foreground h-full transition-all"
+                style={{
+                  width: `${((step + 1) / questions.length) * 100}%`,
+                }}
+              />
+            </div>
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {step + 1} / {questions.length}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <QuestionField
+            question={current}
+            value={answers[current.id]}
+            onChange={(v) => setAnswer(current.id, v)}
+          />
+        </div>
+
+        {errorMsg ? (
+          <p className="text-destructive mt-3 text-xs" role="alert">
+            {errorMsg}
+          </p>
+        ) : null}
+
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setErrorMsg("");
+              setStep((s) => Math.max(0, s - 1));
+            }}
+            disabled={step === 0}
+            className="text-muted-foreground hover:text-foreground inline-flex h-10 items-center gap-1 rounded-md px-3 text-sm transition-colors disabled:opacity-30"
+          >
+            ← Back
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={status === "submitting"}
+            className="bg-foreground text-background inline-flex h-11 items-center rounded-xl px-5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {status === "submitting"
+              ? "Submitting…"
+              : isLast
+                ? cfg.submit_text || "Submit"
+                : "Next →"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Single-page UI: all questions at once ──
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        submitAll();
+      }}
+      className="border-border bg-background mx-auto w-full max-w-xl space-y-5 rounded-2xl border p-6 shadow-sm sm:p-8"
+    >
+      <div className="space-y-2 text-center">
+        <p className="text-lg font-semibold sm:text-xl">{cfg.heading}</p>
+        {cfg.description ? (
+          <p className="text-muted-foreground text-sm">{cfg.description}</p>
+        ) : null}
+      </div>
+      <div className="space-y-4">
+        {questions.map((q) => (
+          <QuestionField
+            key={q.id}
+            question={q}
+            value={answers[q.id]}
+            onChange={(v) => setAnswer(q.id, v)}
+          />
+        ))}
+      </div>
+      {errorMsg ? (
+        <p className="text-destructive text-center text-xs" role="alert">
+          {errorMsg}
+        </p>
+      ) : null}
+      <button
+        type="submit"
+        disabled={status === "submitting"}
+        className="bg-foreground text-background h-11 w-full rounded-xl text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        {status === "submitting"
+          ? "Submitting…"
+          : cfg.submit_text || "Submit"}
+      </button>
+    </form>
+  );
+}
+
+function QuestionField({
+  question: q,
+  value,
+  onChange,
+}: {
+  question: FormQuestion;
+  value: string | string[] | undefined;
+  onChange: (v: string | string[]) => void;
+}) {
+  const labelEl = (
+    <div className="space-y-1">
+      <label
+        htmlFor={q.id}
+        className="block text-sm font-medium"
+      >
+        {q.label}
+        {q.required ? (
+          <span className="text-destructive ml-0.5">*</span>
+        ) : null}
+      </label>
+      {q.description ? (
+        <p className="text-muted-foreground text-xs">{q.description}</p>
+      ) : null}
+    </div>
+  );
+
+  const inputClass =
+    "border-border bg-background w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20";
+
+  switch (q.type) {
+    case "long_text":
+      return (
+        <div className="space-y-2">
+          {labelEl}
+          <textarea
+            id={q.id}
+            rows={4}
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={q.placeholder}
+            className={inputClass}
+          />
+        </div>
+      );
+
+    case "choice": {
+      const opts = q.options ?? [];
+      return (
+        <fieldset className="space-y-2">
+          <legend>{labelEl}</legend>
+          <div className="space-y-1.5">
+            {opts.map((opt) => (
+              <label
+                key={opt}
+                className="border-border hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border p-2.5 text-sm"
+              >
+                <input
+                  type="radio"
+                  name={q.id}
+                  value={opt}
+                  checked={value === opt}
+                  onChange={() => onChange(opt)}
+                />
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      );
+    }
+
+    case "multi_choice": {
+      const opts = q.options ?? [];
+      const selected = (Array.isArray(value) ? value : []) as string[];
+      return (
+        <fieldset className="space-y-2">
+          <legend>{labelEl}</legend>
+          <div className="space-y-1.5">
+            {opts.map((opt) => (
+              <label
+                key={opt}
+                className="border-border hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border p-2.5 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  name={q.id}
+                  value={opt}
+                  checked={selected.includes(opt)}
+                  onChange={() => {
+                    if (selected.includes(opt)) {
+                      onChange(selected.filter((s) => s !== opt));
+                    } else {
+                      onChange([...selected, opt]);
+                    }
+                  }}
+                />
+                <span>{opt}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      );
+    }
+
+    case "number":
+      return (
+        <div className="space-y-2">
+          {labelEl}
+          <input
+            id={q.id}
+            type="number"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={q.placeholder}
+            className={inputClass}
+          />
+        </div>
+      );
+
+    case "url":
+      return (
+        <div className="space-y-2">
+          {labelEl}
+          <input
+            id={q.id}
+            type="url"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={q.placeholder ?? "https://"}
+            className={inputClass}
+          />
+        </div>
+      );
+
+    case "email":
+      return (
+        <div className="space-y-2">
+          {labelEl}
+          <input
+            id={q.id}
+            type="email"
+            autoComplete="email"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={q.placeholder ?? "you@example.com"}
+            className={inputClass}
+          />
+        </div>
+      );
+
+    case "name":
+      return (
+        <div className="space-y-2">
+          {labelEl}
+          <input
+            id={q.id}
+            type="text"
+            autoComplete="name"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={q.placeholder ?? "Your name"}
+            className={inputClass}
+          />
+        </div>
+      );
+
+    case "short_text":
+    default:
+      return (
+        <div className="space-y-2">
+          {labelEl}
+          <input
+            id={q.id}
+            type="text"
+            value={(value as string) ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={q.placeholder}
+            className={inputClass}
+          />
+        </div>
+      );
+  }
 }

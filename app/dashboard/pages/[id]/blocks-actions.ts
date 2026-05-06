@@ -25,6 +25,7 @@ const VALID_TYPES = [
   "button",
   "embed",
   "lead_magnet",
+  "form",
 ] as const;
 type BlockType = (typeof VALID_TYPES)[number];
 
@@ -124,6 +125,23 @@ function defaultConfig(type: BlockType): Json {
         file_label: "the guide",
         download_url: "",
         button_text: "Send it to me",
+      } as Json;
+    case "form":
+      return {
+        heading: "Quick survey",
+        description: "Help me understand what you need.",
+        layout: "stepped",
+        submit_text: "Submit",
+        thank_you_heading: "Thanks!",
+        thank_you_message: "I'll be in touch soon.",
+        questions: [
+          {
+            id: `q_${Math.random().toString(36).slice(2, 10)}`,
+            type: "email",
+            label: "What's your email?",
+            required: true,
+          },
+        ],
       } as Json;
   }
 }
@@ -344,6 +362,69 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
         download_url: get("download_url"),
         button_text: get("button_text") || undefined,
       } as Json;
+
+    case "form": {
+      const validQTypes = [
+        "short_text",
+        "long_text",
+        "email",
+        "name",
+        "choice",
+        "multi_choice",
+        "number",
+        "url",
+      ];
+      const rawCount = parseInt(get("question_count") || "0", 10);
+      const count = Number.isFinite(rawCount)
+        ? Math.min(Math.max(rawCount, 0), 50)
+        : 0;
+      const questions: {
+        id: string;
+        type: string;
+        label: string;
+        description?: string;
+        required: boolean;
+        options?: string[];
+        placeholder?: string;
+      }[] = [];
+      for (let i = 0; i < count; i++) {
+        const label = get(`q_label_${i}`);
+        if (!label) continue;
+        const rawType = get(`q_type_${i}`);
+        const type = validQTypes.includes(rawType) ? rawType : "short_text";
+        const id =
+          get(`q_id_${i}`) ||
+          `q_${Math.random().toString(36).slice(2, 10)}`;
+        const optionsText = get(`q_options_${i}`);
+        const options =
+          type === "choice" || type === "multi_choice"
+            ? optionsText
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : undefined;
+        questions.push({
+          id,
+          type,
+          label,
+          description: get(`q_description_${i}`) || undefined,
+          required: fd.get(`q_required_${i}`) === "on",
+          options,
+          placeholder: get(`q_placeholder_${i}`) || undefined,
+        });
+      }
+      const layout = get("layout") === "single" ? "single" : "stepped";
+      return {
+        heading: get("heading") || "Form",
+        description: get("description") || undefined,
+        layout,
+        submit_text: get("submit_text") || undefined,
+        redirect_url: get("redirect_url") || undefined,
+        thank_you_heading: get("thank_you_heading") || undefined,
+        thank_you_message: get("thank_you_message") || undefined,
+        questions,
+      } as Json;
+    }
   }
 }
 

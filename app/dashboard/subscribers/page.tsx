@@ -38,7 +38,7 @@ export default async function SubscribersPage({
   let query = supabase
     .from("subscribers")
     .select(
-      "id, email, name, status, source_page_id, created_at",
+      "id, email, name, status, source_page_id, created_at, metadata",
       { count: "exact" },
     )
     .eq("profile_id", user.id)
@@ -137,12 +137,20 @@ export default async function SubscribersPage({
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Source</TableHead>
+              <TableHead className="text-right">Form responses</TableHead>
               <TableHead className="text-right">Subscribed</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows && rows.length > 0 ? (
-              rows.map((r) => (
+              rows.map((r) => {
+                const meta = (r.metadata as
+                  | { form_submissions?: unknown[] }
+                  | null) ?? {};
+                const submissions = Array.isArray(meta.form_submissions)
+                  ? meta.form_submissions.length
+                  : 0;
+                return (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.email}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -156,15 +164,25 @@ export default async function SubscribersPage({
                       ? (pageSlugByIdMap.get(r.source_page_id) ?? "—")
                       : "—"}
                   </TableCell>
+                  <TableCell className="text-right text-xs tabular-nums">
+                    {submissions > 0 ? (
+                      <span className="bg-muted text-foreground rounded-full px-2 py-0.5">
+                        {submissions}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-right text-xs">
                     {new Date(r.created_at).toLocaleDateString()}
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-muted-foreground py-12 text-center text-sm"
                 >
                   {q || status

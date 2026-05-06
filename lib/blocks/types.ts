@@ -137,6 +137,50 @@ export type LeadMagnetConfig = {
   list_ids?: string[];
 };
 
+// Multi-question form (Typeform-style). Answers are saved to the
+// subscriber's metadata.form_submissions array via the /submit-form
+// edge function. The submitter's email is required and becomes their
+// subscriber email; their name (if asked) becomes the subscriber name.
+export type FormQuestionType =
+  | "short_text"
+  | "long_text"
+  | "email"
+  | "name"
+  | "choice"
+  | "multi_choice"
+  | "number"
+  | "url";
+
+export type FormQuestion = {
+  id: string; // stable identifier so renaming the label doesn't lose history
+  type: FormQuestionType;
+  label: string;
+  description?: string;
+  required?: boolean;
+  // For choice / multi_choice
+  options?: string[];
+  placeholder?: string;
+};
+
+export type FormConfig = {
+  heading?: string;
+  description?: string;
+  // "stepped" = one question per screen with Next/Back (Typeform-like).
+  // "single" = all questions on one page.
+  layout?: "stepped" | "single";
+  submit_text?: string;
+  // Where to send the visitor after a successful submission. Optional —
+  // when blank, we just show a success message.
+  redirect_url?: string;
+  // Message shown briefly before redirecting (or as the final state if
+  // there's no redirect).
+  thank_you_heading?: string;
+  thank_you_message?: string;
+  // Optional list assignment, like email_form / lead_magnet.
+  list_ids?: string[];
+  questions: FormQuestion[];
+};
+
 export type FeatureItem = {
   title: string;
   description?: string;
@@ -211,7 +255,8 @@ export type AnyBlockConfig =
   | StatsConfig
   | ButtonConfig
   | EmbedConfig
-  | LeadMagnetConfig;
+  | LeadMagnetConfig
+  | FormConfig;
 
 // Convert YouTube/Vimeo watch URL to embeddable URL.
 export function toEmbedUrl(url: string): string {

@@ -30,7 +30,8 @@ export type BlockType =
   | "stats"
   | "button"
   | "embed"
-  | "lead_magnet";
+  | "lead_magnet"
+  | "form";
 
 export type PageTemplate = "bio" | "landing";
 
