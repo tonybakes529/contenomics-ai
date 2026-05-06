@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
+  normalizeTestimonials,
   toEmbedUrl,
   type ButtonConfig,
   type CtaConfig,
@@ -13,12 +14,14 @@ import {
   type HeaderConfig,
   type HeroConfig,
   type ImageConfig,
+  type LeadMagnetConfig,
   type LinkConfig,
   type PricingConfig,
   type ProductConfig,
   type SocialIconsConfig,
   type StatsConfig,
   type TestimonialConfig,
+  type TestimonialItem,
   type TextConfig,
   type VideoEmbedConfig,
 } from "@/lib/blocks/types";
@@ -118,6 +121,7 @@ const WIDE_BLOCK_TYPES = new Set([
   "video_embed",
   "image",
   "embed",
+  "testimonial",
 ]);
 
 // Block types that already render edge-to-edge with their own background
@@ -219,6 +223,8 @@ function BlockItem({
       return <ButtonBlock block={block} />;
     case "embed":
       return <EmbedBlock block={block} />;
+    case "lead_magnet":
+      return <LeadMagnetBlock block={block} pageId={pageId} />;
     default:
       return null;
   }
@@ -544,31 +550,55 @@ function HeroBlock({ block }: { block: RendererBlock }) {
 
 function TestimonialBlock({ block }: { block: RendererBlock }) {
   const cfg = block.config as TestimonialConfig;
-  // Render if there's either a quote or a video — both modes are valid.
-  if (!cfg?.quote && !cfg?.video_url) return null;
+  const items = normalizeTestimonials(cfg).slice(0, 3);
+  if (items.length === 0) return null;
 
-  const videoEmbed = cfg.video_url ? toEmbedUrl(cfg.video_url) : null;
-  const aspect = cfg.video_aspect ?? "16:9";
+  // Single testimonial: centered narrow card. Multi: side-by-side grid.
+  if (items.length === 1) {
+    return (
+      <div className="mx-auto w-full max-w-2xl">
+        <TestimonialCard item={items[0]} />
+      </div>
+    );
+  }
 
-  // Portrait videos cap at a much narrower width so they don't dominate.
-  const videoMaxWidth =
-    aspect === "9:16" ? "max-w-[280px] sm:max-w-[320px]" : "max-w-2xl";
-
-  // Whole testimonial is narrow by default — testimonials should never
-  // span the full landing-page width.
   return (
-    <figure className="border-border bg-background mx-auto w-full max-w-2xl rounded-2xl border p-6 shadow-sm sm:p-8">
+    <div
+      className={cn(
+        "mx-auto grid w-full gap-4 sm:gap-6",
+        items.length === 2
+          ? "max-w-4xl grid-cols-1 sm:grid-cols-2"
+          : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+      )}
+    >
+      {items.map((item, i) => (
+        <TestimonialCard key={i} item={item} />
+      ))}
+    </div>
+  );
+}
+
+function TestimonialCard({ item }: { item: TestimonialItem }) {
+  const videoEmbed = item.video_url ? toEmbedUrl(item.video_url) : null;
+  const aspect = item.video_aspect ?? "16:9";
+
+  // Portrait videos cap narrower so vertical clips don't dominate the card.
+  const videoMaxWidth =
+    aspect === "9:16" ? "max-w-[260px]" : "max-w-2xl";
+
+  return (
+    <figure className="border-border bg-background flex h-full flex-col rounded-2xl border p-6 shadow-sm sm:p-7">
       {videoEmbed ? (
         <div
           className={cn(
-            "mx-auto mb-4 overflow-hidden rounded-xl",
+            "mx-auto mb-4 w-full overflow-hidden rounded-xl",
             aspect === "9:16" ? "aspect-[9/16]" : "aspect-video",
             videoMaxWidth,
           )}
         >
           <iframe
             src={videoEmbed}
-            title={`Testimonial — ${cfg.author || "video"}`}
+            title={`Testimonial — ${item.author || "video"}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             className="h-full w-full border-0"
@@ -576,35 +606,37 @@ function TestimonialBlock({ block }: { block: RendererBlock }) {
         </div>
       ) : null}
 
-      {cfg.quote ? (
-        <blockquote className="text-base leading-relaxed sm:text-lg">
-          &ldquo;{cfg.quote}&rdquo;
+      {item.quote ? (
+        <blockquote className="text-base leading-relaxed">
+          &ldquo;{item.quote}&rdquo;
         </blockquote>
       ) : null}
 
-      {cfg.author ? (
+      {item.author ? (
         <figcaption
           className={cn(
             "flex items-center gap-3",
-            cfg.quote || videoEmbed ? "mt-4" : "",
+            item.quote || videoEmbed ? "mt-4" : "",
+            // Push attribution to bottom in grid mode for vertical alignment
+            "mt-auto",
           )}
         >
-          {cfg.avatar_url && !videoEmbed ? (
+          {item.avatar_url && !videoEmbed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={cfg.avatar_url}
+              src={item.avatar_url}
               alt=""
               className="size-10 rounded-full object-cover"
             />
           ) : !videoEmbed ? (
             <div className="bg-muted text-muted-foreground flex size-10 items-center justify-center rounded-full text-xs font-semibold">
-              {(cfg.author ?? "?").slice(0, 2).toUpperCase()}
+              {(item.author ?? "?").slice(0, 2).toUpperCase()}
             </div>
           ) : null}
           <div className="text-sm">
-            <p className="font-medium">{cfg.author}</p>
-            {cfg.role ? (
-              <p className="text-muted-foreground text-xs">{cfg.role}</p>
+            <p className="font-medium">{item.author}</p>
+            {item.role ? (
+              <p className="text-muted-foreground text-xs">{item.role}</p>
             ) : null}
           </div>
         </figcaption>
@@ -919,5 +951,135 @@ function EmbedBlock({ block }: { block: RendererBlock }) {
         className="h-full w-full border-0"
       />
     </div>
+  );
+}
+
+// Lead magnet — email gate + immediate download. Visitor enters email,
+// gets subscribed to the creator's list (with double-opt-in via the
+// existing /subscribe edge function), and immediately sees the download
+// link as a button. The email confirmation still goes out so the
+// subscriber list stays clean.
+function LeadMagnetBlock({
+  block,
+  pageId,
+}: {
+  block: RendererBlock;
+  pageId: string;
+}) {
+  const cfg = block.config as LeadMagnetConfig;
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "submitting" | "success" | "error"
+  >("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  if (!cfg?.heading || !cfg?.download_url) return null;
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (status === "submitting") return;
+    setStatus("submitting");
+    setErrorMsg("");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          name: name.trim() || undefined,
+          page_id: pageId,
+          block_id: block.id,
+          list_ids: cfg.list_ids,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Could not sign you up right now.");
+      }
+      // Track-click as an attribution signal so creators can see the
+      // download as a conversion event.
+      fireTrackClick(block.id);
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
+  if (status === "success") {
+    return (
+      <div className="border-border bg-background mx-auto w-full max-w-xl rounded-2xl border p-6 text-center shadow-sm sm:p-8">
+        <p className="text-base font-semibold sm:text-lg">
+          You&apos;re in. {cfg.file_label ? `Here's your ${cfg.file_label}:` : "Here's your download:"}
+        </p>
+        <a
+          href={cfg.download_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => fireTrackClick(block.id)}
+          className="bg-foreground text-background mt-4 inline-flex h-11 items-center rounded-xl px-5 text-sm font-medium shadow-sm transition-opacity hover:opacity-90"
+        >
+          Download {cfg.file_label || "now"}
+        </a>
+        <p className="text-muted-foreground mt-4 text-xs">
+          We also sent a copy to your inbox — check your email to confirm
+          your subscription.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="border-border bg-background mx-auto flex w-full max-w-xl flex-col gap-3 rounded-2xl border p-6 shadow-sm sm:p-8"
+    >
+      <div className="space-y-1.5 text-center">
+        <p className="text-base font-semibold sm:text-lg">{cfg.heading}</p>
+        {cfg.description ? (
+          <p className="text-muted-foreground text-sm">{cfg.description}</p>
+        ) : null}
+      </div>
+      <input
+        type="text"
+        name="name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Your name (optional)"
+        autoComplete="name"
+        className="border-border bg-background h-10 rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/20"
+      />
+      <input
+        type="email"
+        name="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        autoComplete="email"
+        required
+        className="border-border bg-background h-10 rounded-md border px-3 text-sm outline-none focus:ring-2 focus:ring-black/20"
+      />
+      <button
+        type="submit"
+        disabled={status === "submitting"}
+        className="bg-foreground text-background mt-1 h-11 rounded-md text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        {status === "submitting"
+          ? "Sending…"
+          : (cfg.button_text ?? `Send me ${cfg.file_label || "the link"}`)}
+      </button>
+      {errorMsg ? (
+        <p className="text-destructive text-center text-xs" role="alert">
+          {errorMsg}
+        </p>
+      ) : null}
+    </form>
   );
 }

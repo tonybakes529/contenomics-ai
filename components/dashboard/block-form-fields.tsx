@@ -265,65 +265,7 @@ export function BlockFormFields({
       );
 
     case "testimonial":
-      return (
-        <>
-          <Field id="quote" label="Quote (optional if you set a video)">
-            <Textarea
-              id="quote"
-              name="quote"
-              defaultValue={get("quote")}
-              rows={3}
-            />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field id="author" label="Author name">
-              <Input id="author" name="author" defaultValue={get("author")} required />
-            </Field>
-            <Field id="role" label="Role / source (optional)">
-              <Input
-                id="role"
-                name="role"
-                defaultValue={get("role")}
-                placeholder="@username or CEO at Acme"
-              />
-            </Field>
-          </div>
-          <Field id="video_url" label="Video URL (optional, YouTube/Vimeo)">
-            <Input
-              id="video_url"
-              name="video_url"
-              type="url"
-              defaultValue={get("video_url")}
-              placeholder="https://youtube.com/watch?v=…"
-            />
-            <p className="text-muted-foreground mt-1 text-xs">
-              When set, replaces the avatar. Pick the right aspect for
-              the source clip.
-            </p>
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field id="video_aspect" label="Video aspect">
-              <select
-                id="video_aspect"
-                name="video_aspect"
-                defaultValue={get("video_aspect") || "16:9"}
-                className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
-              >
-                <option value="16:9">16:9 (landscape)</option>
-                <option value="9:16">9:16 (vertical / Shorts / TikTok)</option>
-              </select>
-            </Field>
-            <Field id="avatar_url" label="Avatar URL (used if no video)">
-              <Input
-                id="avatar_url"
-                name="avatar_url"
-                type="url"
-                defaultValue={get("avatar_url")}
-              />
-            </Field>
-          </div>
-        </>
-      );
+      return <TestimonialsEditor config={c} />;
 
     case "features":
       return (
@@ -618,6 +560,64 @@ export function BlockFormFields({
         </>
       );
 
+    case "lead_magnet":
+      return (
+        <>
+          <Field id="heading" label="Heading">
+            <Input
+              id="heading"
+              name="heading"
+              defaultValue={get("heading") || "Get my free guide"}
+              required
+            />
+          </Field>
+          <Field id="description" label="Description (optional)">
+            <Textarea
+              id="description"
+              name="description"
+              defaultValue={get("description")}
+              rows={2}
+              placeholder="Drop your email and I'll send you the link."
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="file_label" label="What you're sending">
+              <Input
+                id="file_label"
+                name="file_label"
+                defaultValue={get("file_label") || "the guide"}
+                placeholder="Free PDF guide"
+              />
+              <p className="text-muted-foreground mt-1 text-xs">
+                Shown on the download button.
+              </p>
+            </Field>
+            <Field id="button_text" label="Button text (optional)">
+              <Input
+                id="button_text"
+                name="button_text"
+                defaultValue={get("button_text")}
+                placeholder="Send it to me"
+              />
+            </Field>
+          </div>
+          <Field id="download_url" label="Download URL (gated content)">
+            <Input
+              id="download_url"
+              name="download_url"
+              type="url"
+              defaultValue={get("download_url")}
+              required
+              placeholder="https://example.com/my-guide.pdf"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Shown after a visitor confirms their email. Anything URL-able
+              works — PDF, Notion page, Google Drive link, or any website.
+            </p>
+          </Field>
+        </>
+      );
+
     case "embed":
       return (
         <>
@@ -801,6 +801,219 @@ function FeaturesEditor({
       </Button>
     </div>
   );
+}
+
+// ─── Stateful testimonials editor (1-3 items, side-by-side on render) ───
+
+type TestimonialItemForm = {
+  quote: string;
+  author: string;
+  role: string;
+  avatar_url: string;
+  video_url: string;
+  video_aspect: "9:16" | "16:9";
+};
+
+function TestimonialsEditor({ config }: { config: AnyConfig }) {
+  // Read either the new items array or the legacy single-item shape.
+  const initialItems: TestimonialItemForm[] = (() => {
+    const items = Array.isArray(config.items)
+      ? (config.items as Partial<TestimonialItemForm>[])
+      : null;
+    if (items && items.length > 0) {
+      return items.slice(0, 3).map(toForm);
+    }
+    if (config.author || config.quote || config.video_url) {
+      return [
+        toForm({
+          quote: (config.quote as string) ?? "",
+          author: (config.author as string) ?? "",
+          role: (config.role as string) ?? "",
+          avatar_url: (config.avatar_url as string) ?? "",
+          video_url: (config.video_url as string) ?? "",
+          video_aspect:
+            (config.video_aspect as "9:16" | "16:9") ?? "16:9",
+        }),
+      ];
+    }
+    return [toForm({})];
+  })();
+
+  const [items, setItems] = useState<TestimonialItemForm[]>(initialItems);
+
+  const update = (idx: number, patch: Partial<TestimonialItemForm>) => {
+    setItems((prev) =>
+      prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
+    );
+  };
+  const remove = (idx: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+  const add = () => {
+    if (items.length >= 3) return;
+    setItems((prev) => [...prev, toForm({})]);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-muted-foreground text-xs">
+          Up to 3 testimonials. They render side-by-side on the public
+          page.
+        </p>
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {items.length} / 3
+        </span>
+      </div>
+
+      <input
+        type="hidden"
+        name="testimonial_count"
+        value={items.length}
+      />
+
+      <div className="space-y-3">
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className="border-border space-y-3 rounded-md border p-3"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground text-xs">
+                Testimonial {i + 1}
+              </span>
+              {items.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1 text-xs"
+                  aria-label={`Remove testimonial ${i + 1}`}
+                >
+                  <Trash2 className="size-3" />
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            <Field
+              id={`testimonial_quote_${i}`}
+              label="Quote (optional if a video is set)"
+              dense
+            >
+              <Textarea
+                id={`testimonial_quote_${i}`}
+                name={`testimonial_quote_${i}`}
+                value={item.quote}
+                onChange={(e) => update(i, { quote: e.target.value })}
+                rows={3}
+              />
+            </Field>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field
+                id={`testimonial_author_${i}`}
+                label="Author name"
+                dense
+              >
+                <Input
+                  id={`testimonial_author_${i}`}
+                  name={`testimonial_author_${i}`}
+                  value={item.author}
+                  onChange={(e) =>
+                    update(i, { author: e.target.value })
+                  }
+                />
+              </Field>
+              <Field
+                id={`testimonial_role_${i}`}
+                label="Role / source"
+                dense
+              >
+                <Input
+                  id={`testimonial_role_${i}`}
+                  name={`testimonial_role_${i}`}
+                  value={item.role}
+                  onChange={(e) => update(i, { role: e.target.value })}
+                  placeholder="@user or Title at Co"
+                />
+              </Field>
+            </div>
+            <Field
+              id={`testimonial_video_url_${i}`}
+              label="Video URL (optional)"
+              dense
+            >
+              <Input
+                id={`testimonial_video_url_${i}`}
+                name={`testimonial_video_url_${i}`}
+                type="url"
+                value={item.video_url}
+                onChange={(e) =>
+                  update(i, { video_url: e.target.value })
+                }
+                placeholder="https://youtube.com/watch?v=…"
+              />
+            </Field>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field
+                id={`testimonial_video_aspect_${i}`}
+                label="Video aspect"
+                dense
+              >
+                <select
+                  id={`testimonial_video_aspect_${i}`}
+                  name={`testimonial_video_aspect_${i}`}
+                  value={item.video_aspect}
+                  onChange={(e) =>
+                    update(i, {
+                      video_aspect: e.target.value as "9:16" | "16:9",
+                    })
+                  }
+                  className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+                >
+                  <option value="16:9">16:9 (landscape)</option>
+                  <option value="9:16">9:16 (vertical)</option>
+                </select>
+              </Field>
+              <Field
+                id={`testimonial_avatar_url_${i}`}
+                label="Avatar URL (used if no video)"
+                dense
+              >
+                <Input
+                  id={`testimonial_avatar_url_${i}`}
+                  name={`testimonial_avatar_url_${i}`}
+                  type="url"
+                  value={item.avatar_url}
+                  onChange={(e) =>
+                    update(i, { avatar_url: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {items.length < 3 ? (
+        <Button type="button" size="sm" variant="outline" onClick={add}>
+          <Plus className="size-4" />
+          Add testimonial
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function toForm(
+  raw: Partial<TestimonialItemForm>,
+): TestimonialItemForm {
+  return {
+    quote: raw.quote ?? "",
+    author: raw.author ?? "",
+    role: raw.role ?? "",
+    avatar_url: raw.avatar_url ?? "",
+    video_url: raw.video_url ?? "",
+    video_aspect: raw.video_aspect === "9:16" ? "9:16" : "16:9",
+  };
 }
 
 function Field({

@@ -9,25 +9,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { BlockFormFields } from "./block-form-fields";
 import {
   ArrowDown,
   ArrowUp,
+  ArrowLeft,
   Eye,
   EyeOff,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
+
+// Sentinel value for `adding` state: the picker (no type chosen yet).
+const PICKER = "__picker__";
 
 export type EditorBlock = {
   id: string;
@@ -44,12 +43,13 @@ const TYPE_LABELS: Record<string, string> = {
   header: "Heading",
   text: "Text",
   features: "Features grid",
-  testimonial: "Testimonial",
+  testimonial: "Testimonials",
   pricing: "Pricing",
   stats: "Stats",
   faq: "FAQ",
   cta: "Call to action",
   email_form: "Email form",
+  lead_magnet: "Lead magnet",
   video_embed: "Video",
   embed: "Embed (Calendly, etc.)",
   social_icons: "Social icons",
@@ -66,6 +66,7 @@ const TYPE_ORDER = [
   "header",
   "text",
   "email_form",
+  "lead_magnet",
   "video_embed",
   "embed",
   "social_icons",
@@ -111,8 +112,20 @@ function summarize(block: EditorBlock): string {
       return (c.title as string) || (c.url as string) || "—";
     case "hero":
       return truncate((c.heading as string) || "(empty hero)");
-    case "testimonial":
-      return truncate((c.quote as string) || "(empty testimonial)");
+    case "testimonial": {
+      const items = Array.isArray(c.items)
+        ? (c.items as { author?: string; quote?: string; video_url?: string }[])
+        : [];
+      // Multi-item shape
+      if (items.length > 0) {
+        const filled = items.filter(
+          (i) => i.author || i.quote || i.video_url,
+        ).length;
+        return `${filled} testimonial${filled === 1 ? "" : "s"}`;
+      }
+      // Legacy single-item shape
+      return truncate((c.quote as string) || (c.author as string) || "(empty testimonial)");
+    }
     case "features": {
       const items = Array.isArray(c.items)
         ? (c.items as { title?: string }[])
@@ -150,6 +163,12 @@ function summarize(block: EditorBlock): string {
     case "embed":
       return (
         (c.title as string) || (c.url as string) || "(empty embed)"
+      );
+    case "lead_magnet":
+      return truncate(
+        (c.heading as string) ||
+          (c.file_label as string) ||
+          "(empty lead magnet)",
       );
     default:
       return "—";
@@ -299,31 +318,24 @@ export function BlocksEditor({
       </ul>
 
       <div className="pt-1">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={(props) => (
-              <Button {...props} variant="outline" size="sm">
-                <Plus className="size-4" />
-                Add block
-              </Button>
-            )}
-          />
-          <DropdownMenuContent>
-            {TYPE_ORDER.map((t) => (
-              <DropdownMenuItem
-                key={t}
-                onClick={() => {
-                  setAdding(t);
-                }}
-              >
-                {TYPE_LABELS[t]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setAdding(PICKER)}
+        >
+          <Plus className="size-4" />
+          Add block
+        </Button>
       </div>
 
-      {/* Add-block dialog: opens with the chosen type */}
+      {/*
+        Add-block dialog: two-step.
+        - When `adding` is the PICKER sentinel, show the type picker grid.
+        - When it's a real type string, show the form for that type.
+        Replaces a Base UI DropdownMenu that was failing to hand off
+        focus into a sibling Dialog cleanly.
+      */}
       <Dialog
         open={adding !== null}
         onOpenChange={(open) => {
@@ -331,27 +343,29 @@ export function BlocksEditor({
         }}
       >
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Add {adding ? (TYPE_LABELS[adding] ?? adding) : "block"}
-            </DialogTitle>
-            <DialogDescription>
-              Configure the block, then save it to your page.
-            </DialogDescription>
-          </DialogHeader>
-          {adding ? (
-            <form
-              action={(fd) => {
-                fd.set("type", adding);
-                startTransition(async () => {
-                  await onCreate(fd);
-                  setAdding(null);
-                });
-              }}
-              className="space-y-4"
-            >
-              <input type="hidden" name="type" value={adding} />
-              <BlockFormFields type={adding} config={{}} />
+          {adding === PICKER ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Add a block</DialogTitle>
+                <DialogDescription>
+                  Pick a block type to add to your page.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {TYPE_ORDER.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setAdding(t)}
+                    className={cn(
+                      "border-border hover:border-foreground/30 hover:bg-muted/50",
+                      "flex h-16 items-center justify-center rounded-md border px-3 text-center text-sm font-medium transition-colors",
+                    )}
+                  >
+                    {TYPE_LABELS[t] ?? t}
+                  </button>
+                ))}
+              </div>
               <DialogFooter>
                 <Button
                   type="button"
@@ -360,9 +374,43 @@ export function BlocksEditor({
                 >
                   Cancel
                 </Button>
-                <Button type="submit">Add block</Button>
               </DialogFooter>
-            </form>
+            </>
+          ) : adding ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  Add {TYPE_LABELS[adding] ?? adding}
+                </DialogTitle>
+                <DialogDescription>
+                  Configure the block, then save it to your page.
+                </DialogDescription>
+              </DialogHeader>
+              <form
+                action={(fd) => {
+                  fd.set("type", adding);
+                  startTransition(async () => {
+                    await onCreate(fd);
+                    setAdding(null);
+                  });
+                }}
+                className="space-y-4"
+              >
+                <input type="hidden" name="type" value={adding} />
+                <BlockFormFields type={adding} config={{}} />
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAdding(PICKER)}
+                  >
+                    <ArrowLeft className="size-3.5" />
+                    Back
+                  </Button>
+                  <Button type="submit">Add block</Button>
+                </DialogFooter>
+              </form>
+            </>
           ) : null}
         </DialogContent>
       </Dialog>

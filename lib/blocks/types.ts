@@ -50,17 +50,53 @@ export type HeroConfig = {
   align?: "left" | "center";
 };
 
-export type TestimonialConfig = {
-  quote: string;
+export type TestimonialItem = {
+  quote?: string;
   author: string;
   role?: string;
   avatar_url?: string;
   // Optional video testimonial. When set, replaces the avatar with an
-  // embedded video. Aspect determines whether to render portrait (9:16,
-  // for vertical phone-style clips) or landscape (16:9, default).
+  // embedded video. Aspect determines portrait (9:16, vertical clips)
+  // vs landscape (16:9, default).
   video_url?: string;
   video_aspect?: "9:16" | "16:9";
 };
+
+export type TestimonialConfig = {
+  // Canonical: array of 1-3 testimonials, rendered side-by-side.
+  items?: TestimonialItem[];
+
+  // Legacy single-item fields (pre-2026-05). Read on render for backward
+  // compat; new edits always write the items array.
+  quote?: string;
+  author?: string;
+  role?: string;
+  avatar_url?: string;
+  video_url?: string;
+  video_aspect?: "9:16" | "16:9";
+};
+
+// Normalize either format into a list.
+export function normalizeTestimonials(
+  cfg: TestimonialConfig,
+): TestimonialItem[] {
+  if (Array.isArray(cfg.items) && cfg.items.length > 0) {
+    return cfg.items.filter((i) => i.author || i.quote || i.video_url);
+  }
+  if (cfg.author || cfg.quote || cfg.video_url) {
+    return [
+      {
+        author: cfg.author ?? "",
+        quote: cfg.quote,
+        role: cfg.role,
+        avatar_url: cfg.avatar_url,
+        video_url: cfg.video_url,
+        video_aspect: cfg.video_aspect,
+      },
+    ];
+  }
+  return [];
+}
 
 // Standalone CTA button — a single button creators can drop anywhere
 // in a page. Distinct from `cta` (which is a full-width dark band) and
@@ -83,6 +119,22 @@ export type EmbedConfig = {
   aspect?: "16:9" | "9:16" | "1:1" | "4:3" | "auto";
   // Pixel height when aspect is "auto" (e.g. Calendly inline ~720).
   height?: number;
+};
+
+// Lead magnet — gated download. Visitors enter their email, get added
+// to the subscriber list, and immediately see a download button to the
+// gated content (PDF, Notion page, course preview, etc.). The standard
+// double-opt-in email still goes out for list verification, so the
+// instant-access download is bonus access for the visitor's convenience.
+export type LeadMagnetConfig = {
+  heading: string;
+  description?: string;
+  // What the gated content is — shown on the download button.
+  file_label?: string; // e.g. "Free PDF guide"
+  // Where the gated content lives — any URL.
+  download_url: string;
+  button_text?: string;
+  list_ids?: string[];
 };
 
 export type FeatureItem = {
@@ -158,7 +210,8 @@ export type AnyBlockConfig =
   | PricingConfig
   | StatsConfig
   | ButtonConfig
-  | EmbedConfig;
+  | EmbedConfig
+  | LeadMagnetConfig;
 
 // Convert YouTube/Vimeo watch URL to embeddable URL.
 export function toEmbedUrl(url: string): string {

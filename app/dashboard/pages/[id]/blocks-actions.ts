@@ -24,6 +24,7 @@ const VALID_TYPES = [
   "stats",
   "button",
   "embed",
+  "lead_magnet",
 ] as const;
 type BlockType = (typeof VALID_TYPES)[number];
 
@@ -116,6 +117,14 @@ function defaultConfig(type: BlockType): Json {
         aspect: "16:9",
         height: 720,
       } as Json;
+    case "lead_magnet":
+      return {
+        heading: "Get my free guide",
+        description: "Drop your email and I'll send you the link.",
+        file_label: "the guide",
+        download_url: "",
+        button_text: "Send it to me",
+      } as Json;
   }
 }
 
@@ -168,16 +177,40 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
         align: get("align") === "left" ? "left" : "center",
       } as Json;
 
-    case "testimonial":
-      return {
-        quote: get("quote") || undefined,
-        author: get("author"),
-        role: get("role") || undefined,
-        avatar_url: get("avatar_url") || undefined,
-        video_url: get("video_url") || undefined,
-        video_aspect:
-          get("video_aspect") === "9:16" ? "9:16" : "16:9",
-      } as Json;
+    case "testimonial": {
+      const items: {
+        quote?: string;
+        author: string;
+        role?: string;
+        avatar_url?: string;
+        video_url?: string;
+        video_aspect: "9:16" | "16:9";
+      }[] = [];
+      const rawCount = parseInt(get("testimonial_count") || "0", 10);
+      const count = Number.isFinite(rawCount)
+        ? Math.min(Math.max(rawCount, 0), 3)
+        : 0;
+      for (let i = 0; i < count; i++) {
+        const author = get(`testimonial_author_${i}`);
+        const quote = get(`testimonial_quote_${i}`);
+        const videoUrl = get(`testimonial_video_url_${i}`);
+        // Skip rows with no content at all.
+        if (!author && !quote && !videoUrl) continue;
+        items.push({
+          quote: quote || undefined,
+          author: author || "",
+          role: get(`testimonial_role_${i}`) || undefined,
+          avatar_url:
+            get(`testimonial_avatar_url_${i}`) || undefined,
+          video_url: videoUrl || undefined,
+          video_aspect:
+            get(`testimonial_video_aspect_${i}`) === "9:16"
+              ? "9:16"
+              : "16:9",
+        });
+      }
+      return { items } as Json;
+    }
 
     case "features": {
       const items: { title: string; description?: string; icon?: string }[] = [];
@@ -302,6 +335,15 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
         height: Number.isFinite(heightNum) ? heightNum : undefined,
       } as Json;
     }
+
+    case "lead_magnet":
+      return {
+        heading: get("heading"),
+        description: get("description") || undefined,
+        file_label: get("file_label") || undefined,
+        download_url: get("download_url"),
+        button_text: get("button_text") || undefined,
+      } as Json;
   }
 }
 

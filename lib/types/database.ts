@@ -29,7 +29,8 @@ export type BlockType =
   | "pricing"
   | "stats"
   | "button"
-  | "embed";
+  | "embed"
+  | "lead_magnet";
 
 export type PageTemplate = "bio" | "landing";
 
