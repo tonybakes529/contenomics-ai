@@ -38,10 +38,59 @@ export function PublicPage({
   if (isLanding) {
     return (
       <main className="min-h-screen bg-white text-black">
-        <header className="border-b border-zinc-200/70">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-8">
-            <div className="flex items-center gap-3">
-              <div className="bg-muted flex size-9 items-center justify-center overflow-hidden rounded-full">
+        {/*
+          Slim nav at the top — a real landing page has a thin header,
+          not a centered avatar+bio block. Just enough to brand the page;
+          the hero block (or whatever the creator puts first) takes over
+          from there.
+        */}
+        <header className="sticky top-0 z-10 border-b border-zinc-200/70 bg-white/80 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-8">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-muted flex size-7 items-center justify-center overflow-hidden rounded-full">
+                {profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <span className="text-muted-foreground text-[10px] font-semibold">
+                    {initials}
+                  </span>
+                )}
+              </div>
+              <span className="text-sm font-semibold tracking-tight">
+                {profile.display_name ?? `@${profile.username}`}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        {/*
+          Blocks are rendered as full-bleed sections by BlockRenderer when
+          template="landing". No max-w wrapper here — each section owns its
+          own padding and inner max-width.
+        */}
+        <BlockRenderer blocks={blocks} pageId={page.id} template="landing" />
+
+        {blocks.length === 0 ? (
+          <div className="mx-auto max-w-2xl px-4 py-32 text-center sm:px-8">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Nothing to show yet
+            </h1>
+            <p className="text-muted-foreground mt-3 text-sm sm:text-base">
+              {profile.display_name ?? `@${profile.username}`} hasn&apos;t
+              published this landing page yet. Check back soon.
+            </p>
+          </div>
+        ) : null}
+
+        <footer className="border-t border-zinc-200/70 bg-zinc-50">
+          <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 px-4 py-10 text-center sm:flex-row sm:justify-between sm:text-left sm:px-8">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-muted flex size-8 items-center justify-center overflow-hidden rounded-full">
                 {profile.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -56,7 +105,7 @@ export function PublicPage({
                 )}
               </div>
               <div className="leading-tight">
-                <p className="text-sm font-semibold">
+                <p className="text-sm font-medium">
                   {profile.display_name ?? `@${profile.username}`}
                 </p>
                 {profile.display_name ? (
@@ -66,30 +115,13 @@ export function PublicPage({
                 ) : null}
               </div>
             </div>
-          </div>
-        </header>
-
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-8 sm:py-16">
-          <BlockRenderer
-            blocks={blocks}
-            pageId={page.id}
-            template="landing"
-          />
-
-          {blocks.length === 0 ? (
-            <p className="text-muted-foreground py-12 text-center text-sm">
-              This page is empty for now. Check back soon.
+            <p className="text-muted-foreground text-xs">
+              Powered by{" "}
+              <a href="/" className="underline underline-offset-2">
+                Contenomics
+              </a>
             </p>
-          ) : null}
-        </div>
-
-        <footer className="border-t border-zinc-200/70 px-4 py-8 text-center sm:px-8">
-          <p className="text-muted-foreground text-xs">
-            Powered by{" "}
-            <a href="/" className="underline">
-              Contenomics
-            </a>
-          </p>
+          </div>
         </footer>
       </main>
     );

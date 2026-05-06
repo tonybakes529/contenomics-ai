@@ -78,13 +78,97 @@ export function BlockRenderer({
   pageId: string;
   template?: "bio" | "landing";
 }) {
-  const gap = template === "landing" ? "gap-12 sm:gap-16" : "gap-3";
+  if (template === "landing") {
+    // Landing: each block becomes its own full-bleed section. Generous
+    // vertical padding so the page reads like a real landing page rather
+    // than a stretched-wide link-list. Some block types fill the full
+    // width naturally (hero, features, pricing, stats) — narrower content
+    // (links, headers, text, email forms) gets centered in a max-w-2xl
+    // column so it doesn't drift in space.
+    return (
+      <div className="w-full">
+        {blocks.map((block) => (
+          <LandingSection key={block.id} block={block} pageId={pageId} />
+        ))}
+      </div>
+    );
+  }
+
+  // Bio: tight stacked column, blocks render edge-to-edge inside the
+  // parent's max-w-md wrapper.
   return (
-    <div className={cn("flex w-full flex-col", gap)}>
+    <div className="flex w-full flex-col gap-3">
       {blocks.map((b) => (
         <BlockItem key={b.id} block={b} pageId={pageId} />
       ))}
     </div>
+  );
+}
+
+// Block types that already fill the section visually (their own headings,
+// grids, dark bands). They get max-w-5xl inner content, full vertical padding.
+const WIDE_BLOCK_TYPES = new Set([
+  "hero",
+  "features",
+  "pricing",
+  "stats",
+  "faq",
+  "video_embed",
+  "image",
+]);
+
+// Block types that already render edge-to-edge with their own background
+// (e.g. CTA's dark band). Don't add another wrapper background.
+const FULL_BLEED_TYPES = new Set(["cta"]);
+
+function LandingSection({
+  block,
+  pageId,
+}: {
+  block: RendererBlock;
+  pageId: string;
+}) {
+  if (block.type === "divider") {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 sm:px-8">
+        <hr className="border-border" />
+      </div>
+    );
+  }
+
+  // Hero pulls extra vertical room and removes its own internal py so
+  // the section padding owns spacing.
+  const isHero = block.type === "hero";
+  const isWide = WIDE_BLOCK_TYPES.has(block.type);
+  const isFullBleed = FULL_BLEED_TYPES.has(block.type);
+
+  if (isFullBleed) {
+    // CTA renders its own colored band — give it top/bottom margin via padding.
+    return (
+      <section className="w-full px-4 py-10 sm:px-8 sm:py-16">
+        <div className="mx-auto max-w-5xl">
+          <BlockItem block={block} pageId={pageId} />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={cn(
+        "w-full px-4 sm:px-8",
+        isHero ? "py-12 sm:py-24" : "py-12 sm:py-20",
+      )}
+    >
+      <div
+        className={cn(
+          "mx-auto",
+          isWide ? "max-w-5xl" : "max-w-2xl",
+        )}
+      >
+        <BlockItem block={block} pageId={pageId} />
+      </div>
+    </section>
   );
 }
 
