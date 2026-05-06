@@ -4,22 +4,28 @@ import { createClient } from "@/lib/supabase/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Download, Search } from "lucide-react";
+import {
+  SubscribersTable,
+  type ListRow,
+  type SubscriberRow,
+} from "@/components/dashboard/subscribers-table";
+import {
+  assignSubscribersToList,
+  removeSubscriberFromList,
+} from "./actions";
 
 export const metadata = { title: "Subscribers — Contenomics" };
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
-type SearchParams = { q?: string; status?: string };
+type SearchParams = {
+  q?: string;
+  status?: string;
+  list?: string;
+  error?: string;
+};
 
 export default async function SubscribersPage({
   searchParams,
@@ -34,6 +40,35 @@ export default async function SubscribersPage({
 
   const q = (searchParams.q ?? "").trim();
   const status = searchParams.status;
+  const listFilter = searchParams.list;
+
+  // Lists are needed for the picker AND for rendering pills.
+  const { data: listsRaw } = await supabase
+    .from("lists")
+    .select("id, name, color")
+    .eq("profile_id", user.id)
+    .order("name", { ascending: true });
+  const lists: ListRow[] = (listsRaw ?? []).map((l) => ({
+    id: l.id,
+    name: l.name,
+    color: l.color,
+  }));
+
+  // If filtering by list, first fetch the subscriber ids in that list
+  // (RLS scopes both tables to the owner so this is safe).
+  let listSubscriberIds: string[] | null = null;
+  if (listFilter) {
+    const { data: junction } = await supabase
+      .from("subscriber_lists")
+      .select("subscriber_id")
+      .eq("list_id", listFilter);
+    listSubscriberIds = (junction ?? []).map((j) => j.subscriber_id);
+    // Empty list -> no rows match
+    if (listSubscriberIds.length === 0) {
+      // Short-circuit to an empty result so we don't issue a `.in('id', [])`
+      // query (Supabase treats that as "no filter" for some clients).
+    }
+  }
 
   let query = supabase
     .from("subscribers")
@@ -46,7 +81,6 @@ export default async function SubscribersPage({
     .limit(PAGE_SIZE);
 
   if (q) {
-    // Match on email or name
     query = query.or(`email.ilike.%${q}%,name.ilike.%${q}%`);
   }
   const validStatuses = ["pending", "confirmed", "unsubscribed", "bounced"] as const;
@@ -54,12 +88,20 @@ export default async function SubscribersPage({
   if (status && (validStatuses as readonly string[]).includes(status)) {
     query = query.eq("status", status as ValidStatus);
   }
+  if (listSubscriberIds) {
+    if (listSubscriberIds.length === 0) {
+      // Force empty result
+      query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      query = query.in("id", listSubscriberIds);
+    }
+  }
 
-  const { data: rows, count } = await query;
+  const { data: subs, count } = await query;
 
-  // Resolve source page slugs for the rows we got back.
+  // Resolve source page slugs.
   const pageIds = Array.from(
-    new Set(rows?.map((r) => r.source_page_id).filter(Boolean) as string[]),
+    new Set(subs?.map((r) => r.source_page_id).filter(Boolean) as string[]),
   );
   const pageSlugByIdMap = new Map<string, string>();
   if (pageIds.length > 0) {
@@ -69,6 +111,45 @@ export default async function SubscribersPage({
       .in("id", pageIds);
     pages?.forEach((p) => pageSlugByIdMap.set(p.id, p.slug));
   }
+
+  // List memberships for the visible subscribers.
+  const subIds = (subs ?? []).map((s) => s.id);
+  const membershipsBySub = new Map<string, string[]>();
+  if (subIds.length > 0) {
+    const { data: memberships } = await supabase
+      .from("subscriber_lists")
+      .select("subscriber_id, list_id")
+      .in("subscriber_id", subIds);
+    memberships?.forEach((m) => {
+      const arr = membershipsBySub.get(m.subscriber_id) ?? [];
+      arr.push(m.list_id);
+      membershipsBySub.set(m.subscriber_id, arr);
+    });
+  }
+
+  const rows: SubscriberRow[] = (subs ?? []).map((s) => {
+    const meta = (s.metadata as { form_submissions?: unknown[] } | null) ?? {};
+    const submissions = Array.isArray(meta.form_submissions)
+      ? meta.form_submissions.length
+      : 0;
+    return {
+      id: s.id,
+      email: s.email,
+      name: s.name,
+      status: s.status,
+      source_page_id: s.source_page_id,
+      source_slug: s.source_page_id
+        ? pageSlugByIdMap.get(s.source_page_id) ?? null
+        : null,
+      created_at: s.created_at,
+      form_submissions_count: submissions,
+      list_ids: membershipsBySub.get(s.id) ?? [],
+    };
+  });
+
+  const activeListName = listFilter
+    ? lists.find((l) => l.id === listFilter)?.name ?? "Unknown list"
+    : null;
 
   return (
     <div className="space-y-6 px-4 py-8 md:px-8">
@@ -80,7 +161,7 @@ export default async function SubscribersPage({
             {typeof count === "number" ? (
               <span>
                 {count.toLocaleString()} total
-                {q || status ? " matching" : ""}.
+                {q || status || listFilter ? " matching" : ""}.
               </span>
             ) : null}
           </p>
@@ -94,6 +175,15 @@ export default async function SubscribersPage({
           Export CSV
         </Link>
       </div>
+
+      {searchParams.error ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/5 text-destructive rounded-md border px-4 py-3 text-sm"
+        >
+          {searchParams.error}
+        </div>
+      ) : null}
 
       <form className="flex flex-wrap items-center gap-2" action="">
         <div className="relative flex-1 min-w-[200px]">
@@ -116,10 +206,22 @@ export default async function SubscribersPage({
           <option value="unsubscribed">Unsubscribed</option>
           <option value="bounced">Bounced</option>
         </select>
+        <select
+          name="list"
+          defaultValue={listFilter ?? ""}
+          className="border-border bg-background h-8 rounded-md border px-2 text-sm"
+        >
+          <option value="">All lists</option>
+          {lists.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
         <Button type="submit" size="sm">
           Filter
         </Button>
-        {q || status ? (
+        {q || status || listFilter ? (
           <Link
             href="/dashboard/subscribers"
             className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
@@ -129,96 +231,35 @@ export default async function SubscribersPage({
         ) : null}
       </form>
 
-      <div className="border-border bg-background overflow-hidden rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">Form responses</TableHead>
-              <TableHead className="text-right">Subscribed</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows && rows.length > 0 ? (
-              rows.map((r) => {
-                const meta = (r.metadata as
-                  | { form_submissions?: unknown[] }
-                  | null) ?? {};
-                const submissions = Array.isArray(meta.form_submissions)
-                  ? meta.form_submissions.length
-                  : 0;
-                return (
-                <TableRow key={r.id}>
-                  <TableCell className="font-medium">{r.email}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {r.name ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <StatusPill status={r.status} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
-                    {r.source_page_id
-                      ? (pageSlugByIdMap.get(r.source_page_id) ?? "—")
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-xs tabular-nums">
-                    {submissions > 0 ? (
-                      <span className="bg-muted text-foreground rounded-full px-2 py-0.5">
-                        {submissions}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right text-xs">
-                    {new Date(r.created_at).toLocaleDateString()}
-                  </TableCell>
-                </TableRow>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-muted-foreground py-12 text-center text-sm"
-                >
-                  {q || status
-                    ? "No subscribers match those filters."
-                    : "No subscribers yet. Add an email block to your page to start collecting."}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {activeListName ? (
+        <div className="border-border bg-muted/40 rounded-md border px-3 py-2 text-xs">
+          Filtering by list <strong>{activeListName}</strong>.{" "}
+          <Link
+            href="/dashboard/subscribers"
+            className="text-foreground underline"
+          >
+            Show all
+          </Link>
+        </div>
+      ) : null}
 
-      {rows && rows.length === PAGE_SIZE ? (
+      <SubscribersTable
+        rows={rows}
+        lists={lists}
+        emptyMessage={
+          q || status || listFilter
+            ? "No subscribers match those filters."
+            : "No subscribers yet. Add an email or form block to your page to start collecting."
+        }
+        onAssign={assignSubscribersToList}
+        onRemoveFromList={removeSubscriberFromList}
+      />
+
+      {rows.length === PAGE_SIZE ? (
         <p className="text-muted-foreground text-center text-xs">
           Showing the most recent {PAGE_SIZE}. Pagination coming in v1.1.
         </p>
       ) : null}
     </div>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    confirmed: "bg-foreground text-background",
-    pending: "bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-300",
-    unsubscribed: "bg-muted text-muted-foreground",
-    bounced: "bg-destructive/15 text-destructive",
-  };
-  return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-xs",
-        styles[status] ?? "bg-muted text-muted-foreground",
-      )}
-    >
-      {status}
-    </span>
   );
 }
