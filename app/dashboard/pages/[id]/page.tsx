@@ -21,6 +21,7 @@ import {
 } from "../actions";
 import { DeletePageButton } from "@/components/dashboard/delete-page-button";
 import { BlocksEditor } from "@/components/dashboard/blocks-editor";
+import { PreviewPane } from "@/components/dashboard/preview-pane";
 import {
   createBlock,
   deleteBlock,
@@ -89,8 +90,17 @@ export default async function PageEditor({
         ? `/${profile.username}/${page.slug}`
         : null;
 
+  // Preview iframe loads our internal preview route (auth-scoped, bypasses
+  // is_published). The refreshKey changes whenever the server re-renders
+  // this editor — which happens after every revalidatePath fired by an
+  // action — so the iframe re-mounts with fresh content automatically.
+  const previewSrc = `/dashboard/pages/${page.id}/preview`;
+  const refreshKey = `${page.updated_at}:${blocks?.length ?? 0}`;
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 md:px-8">
+    <div className="flex h-[calc(100vh-3.5rem)] md:h-screen">
+      {/* ── Editor sidebar (left) ────────────────────────────────────── */}
+      <aside className="border-border w-full space-y-6 overflow-y-auto border-r bg-white px-4 py-6 md:px-6 lg:max-w-[460px] lg:shrink-0">
       <div>
         <Link
           href="/dashboard/pages"
@@ -308,6 +318,16 @@ export default async function PageEditor({
           </CardContent>
         </Card>
       ) : null}
+      </aside>
+
+      {/* ── Live preview (right) ─────────────────────────────────────── */}
+      <div className="hidden flex-1 lg:block">
+        <PreviewPane
+          src={previewSrc}
+          refreshKey={refreshKey}
+          publicHref={publicUrl ?? previewSrc}
+        />
+      </div>
     </div>
   );
 }
