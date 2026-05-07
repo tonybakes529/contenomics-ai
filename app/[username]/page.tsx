@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PublicPage } from "@/components/public/public-page";
+import { resolveBlockRefs } from "@/lib/blocks/resolve-refs";
 
 // Reserved single-segment paths that must not be matched as usernames.
 // Static routes win in Next.js, but this prevents a user signing up as
@@ -88,11 +89,13 @@ export default async function PublicBioPage({ params }: Props) {
     .eq("is_visible", true)
     .order("position", { ascending: true });
 
+  const resolved = await resolveBlockRefs(supabase, blocks ?? []);
+
   return (
     <PublicPage
       profile={profile}
       page={{ id: page.id, template: page.template }}
-      blocks={blocks ?? []}
+      blocks={resolved}
     />
   );
 }

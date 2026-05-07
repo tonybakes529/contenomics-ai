@@ -8,6 +8,7 @@ import {
   FileText,
   Users,
   ListChecks,
+  Magnet,
   Settings,
   ExternalLink,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard/pages", label: "Pages", icon: FileText },
   { href: "/dashboard/subscribers", label: "Subscribers", icon: Users },
   { href: "/dashboard/lists", label: "Lists", icon: ListChecks },
+  { href: "/dashboard/lead-magnets", label: "Lead magnets", icon: Magnet },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 

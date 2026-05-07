@@ -87,6 +87,16 @@ export default async function PageEditor({
     (defaultLinks ?? []).map((d) => d.list_id),
   );
 
+  const { data: leadMagnetRows } = await supabase
+    .from("lead_magnets")
+    .select("id, name")
+    .eq("profile_id", user.id)
+    .order("updated_at", { ascending: false });
+  const leadMagnets = (leadMagnetRows ?? []).map((m) => ({
+    id: m.id,
+    name: m.name,
+  }));
+
   const updatePageBound = updatePageMeta.bind(null, page.id);
   const togglePublishBound = togglePagePublish.bind(null, page.id);
   const deleteBound = deletePage.bind(null, page.id);
@@ -344,6 +354,7 @@ export default async function PageEditor({
           <BlocksEditor
             pageId={page.id}
             template={page.template}
+            leadMagnets={leadMagnets}
             blocks={(blocks ?? []).map((b) => ({
               id: b.id,
               type: b.type,

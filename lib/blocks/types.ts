@@ -127,12 +127,19 @@ export type EmbedConfig = {
 // double-opt-in email still goes out for list verification, so the
 // instant-access download is bonus access for the visitor's convenience.
 export type LeadMagnetConfig = {
-  heading: string;
+  // Optional pointer to a row in the lead_magnets table. When set,
+  // the public renderer resolves missing fields below from that row,
+  // so creators can update copy/URL in one place. Inline values still
+  // win over saved defaults.
+  lead_magnet_id?: string;
+
+  heading?: string;
   description?: string;
   // What the gated content is — shown on the download button.
   file_label?: string; // e.g. "Free PDF guide"
-  // Where the gated content lives — any URL.
-  download_url: string;
+  // Where the gated content lives — any URL. Optional when lead_magnet_id
+  // is set (the saved magnet's URL is used).
+  download_url?: string;
   button_text?: string;
   list_ids?: string[];
 };

@@ -21,12 +21,21 @@ const KNOWN_PLATFORMS = [
 
 type AnyConfig = Record<string, unknown>;
 
+export type LeadMagnetChoice = {
+  id: string;
+  name: string;
+};
+
 export function BlockFormFields({
   type,
   config,
+  leadMagnets,
 }: {
   type: string;
   config: AnyConfig;
+  // Saved lead magnets the creator can pick from in the lead_magnet
+  // block editor. Empty array if they haven't created any yet.
+  leadMagnets?: LeadMagnetChoice[];
 }) {
   const c = config ?? {};
   const get = (k: string): string => {
@@ -566,12 +575,48 @@ export function BlockFormFields({
     case "lead_magnet":
       return (
         <>
+          {leadMagnets && leadMagnets.length > 0 ? (
+            <Field
+              id="lead_magnet_id"
+              label="Use a saved lead magnet (optional)"
+            >
+              <select
+                id="lead_magnet_id"
+                name="lead_magnet_id"
+                defaultValue={get("lead_magnet_id")}
+                className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+              >
+                <option value="">— Configure inline —</option>
+                {leadMagnets.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-muted-foreground mt-1 text-xs">
+                When set, missing fields below fall back to the saved
+                magnet&apos;s defaults. Inline values override.
+              </p>
+            </Field>
+          ) : (
+            <p className="text-muted-foreground rounded-md border border-dashed p-2 text-xs">
+              Tip: create reusable lead magnets in{" "}
+              <a
+                href="/dashboard/lead-magnets"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline"
+              >
+                Lead magnets
+              </a>{" "}
+              so you can update copy + URL in one place.
+            </p>
+          )}
           <Field id="heading" label="Heading">
             <Input
               id="heading"
               name="heading"
               defaultValue={get("heading") || "Get my free guide"}
-              required
             />
           </Field>
           <Field id="description" label="Description (optional)">
@@ -610,12 +655,11 @@ export function BlockFormFields({
               name="download_url"
               type="url"
               defaultValue={get("download_url")}
-              required
               placeholder="https://example.com/my-guide.pdf"
             />
             <p className="text-muted-foreground mt-1 text-xs">
-              Shown after a visitor confirms their email. Anything URL-able
-              works — PDF, Notion page, Google Drive link, or any website.
+              Shown after a visitor confirms their email. Required unless
+              you picked a saved lead magnet above.
             </p>
           </Field>
         </>

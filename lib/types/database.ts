@@ -304,6 +304,67 @@ export interface Database {
           },
         ];
       };
+      lead_magnets: {
+        Row: {
+          id: string;
+          profile_id: string;
+          name: string;
+          description: string | null;
+          download_url: string;
+          file_label: string | null;
+          default_heading: string | null;
+          default_description: string | null;
+          default_button_text: string | null;
+          list_id: string | null;
+          download_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          name: string;
+          description?: string | null;
+          download_url: string;
+          file_label?: string | null;
+          default_heading?: string | null;
+          default_description?: string | null;
+          default_button_text?: string | null;
+          list_id?: string | null;
+          download_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          name?: string;
+          description?: string | null;
+          download_url?: string;
+          file_label?: string | null;
+          default_heading?: string | null;
+          default_description?: string | null;
+          default_button_text?: string | null;
+          list_id?: string | null;
+          download_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lead_magnets_profile_id_fkey";
+            columns: ["profile_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lead_magnets_list_id_fkey";
+            columns: ["list_id"];
+            referencedRelation: "lists";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       page_default_lists: {
         Row: {
           page_id: string;
@@ -409,3 +470,4 @@ export type List = Database["public"]["Tables"]["lists"]["Row"];
 export type SubscriberList =
   Database["public"]["Tables"]["subscriber_lists"]["Row"];
 export type Click = Database["public"]["Tables"]["clicks"]["Row"];
+export type LeadMagnet = Database["public"]["Tables"]["lead_magnets"]["Row"];

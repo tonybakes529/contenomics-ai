@@ -978,6 +978,10 @@ function LeadMagnetBlock({
   >("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Heading + download_url are required for the block to make sense.
+  // If a lead_magnet_id is set, the server-side resolver should have
+  // filled these in already — see resolveLeadMagnets in the public
+  // page route.
   if (!cfg?.heading || !cfg?.download_url) return null;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

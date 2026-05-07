@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PublicPage } from "@/components/public/public-page";
+import { resolveBlockRefs } from "@/lib/blocks/resolve-refs";
 
 export const dynamic = "force-dynamic";
 
@@ -78,11 +79,13 @@ export default async function PublicSlugPage({ params }: Props) {
     .eq("is_visible", true)
     .order("position", { ascending: true });
 
+  const resolved = await resolveBlockRefs(supabase, blocks ?? []);
+
   return (
     <PublicPage
       profile={profile}
       page={{ id: page.id, template: page.template }}
-      blocks={blocks ?? []}
+      blocks={resolved}
     />
   );
 }

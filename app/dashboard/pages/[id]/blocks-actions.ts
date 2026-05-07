@@ -356,10 +356,11 @@ function configFromFormData(type: BlockType, fd: FormData): Json {
 
     case "lead_magnet":
       return {
-        heading: get("heading"),
+        lead_magnet_id: get("lead_magnet_id") || undefined,
+        heading: get("heading") || undefined,
         description: get("description") || undefined,
         file_label: get("file_label") || undefined,
-        download_url: get("download_url"),
+        download_url: get("download_url") || undefined,
         button_text: get("button_text") || undefined,
       } as Json;
 

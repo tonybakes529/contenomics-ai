@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { BlockFormFields } from "./block-form-fields";
+import { BlockFormFields, type LeadMagnetChoice } from "./block-form-fields";
 import {
   ArrowDown,
   ArrowUp,
@@ -189,6 +189,7 @@ export function BlocksEditor({
   pageId,
   blocks,
   template,
+  leadMagnets,
   onCreate,
   onUpdate,
   onDelete,
@@ -199,6 +200,7 @@ export function BlocksEditor({
   pageId: string;
   blocks: EditorBlock[];
   template: "bio" | "landing";
+  leadMagnets: LeadMagnetChoice[];
   onCreate: (formData: FormData) => Promise<void>;
   onUpdate: (blockId: string, formData: FormData) => Promise<void>;
   onDelete: (blockId: string) => Promise<void>;
@@ -407,7 +409,11 @@ export function BlocksEditor({
                 className="space-y-4"
               >
                 <input type="hidden" name="type" value={adding} />
-                <BlockFormFields type={adding} config={{}} />
+                <BlockFormFields
+                  type={adding}
+                  config={{}}
+                  leadMagnets={leadMagnets}
+                />
                 <DialogFooter>
                   <Button
                     type="button"
@@ -457,6 +463,7 @@ export function BlocksEditor({
               <BlockFormFields
                 type={editing.type}
                 config={(editing.config ?? {}) as Record<string, unknown>}
+                leadMagnets={leadMagnets}
               />
               <div className="border-border flex items-center justify-between rounded-md border px-3 py-2">
                 <div className="space-y-0.5">
