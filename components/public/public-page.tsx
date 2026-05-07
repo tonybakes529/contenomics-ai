@@ -36,18 +36,46 @@ export function PublicPage({
 
   // ─── Landing template: wide, sectioned, desktop-friendly ──────────────
   if (isLanding) {
+    // The contenomics-dark wrapper overrides theme CSS vars so all
+    // descendant blocks (which use bg-background, text-foreground,
+    // border-border, etc.) automatically pick up the dark/glass palette
+    // — no per-block code changes needed. Bio template is untouched.
     return (
-      <main className="min-h-screen bg-white text-black">
+      <main className="contenomics-dark relative min-h-screen overflow-hidden">
+        {/* Decorative ambient glows. Absolute, non-interactive. */}
+        <div
+          className="glow-emerald"
+          style={{
+            top: "-100px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "800px",
+            height: "600px",
+          }}
+          aria-hidden
+        />
+        <div
+          className="glow-blue"
+          style={{
+            top: "30%",
+            right: "5%",
+            width: "400px",
+            height: "400px",
+          }}
+          aria-hidden
+        />
+
         {/*
           Slim nav at the top — a real landing page has a thin header,
-          not a centered avatar+bio block. Just enough to brand the page;
-          the hero block (or whatever the creator puts first) takes over
-          from there.
+          not a centered avatar+bio block.
         */}
-        <header className="sticky top-0 z-10 border-b border-zinc-200/70 bg-white/80 backdrop-blur">
+        <header className="glass-header sticky top-0 z-30">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-8">
             <div className="flex items-center gap-2.5">
-              <div className="bg-muted flex size-7 items-center justify-center overflow-hidden rounded-full">
+              <div
+                className="flex size-7 items-center justify-center overflow-hidden rounded-full"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              >
                 {profile.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -56,41 +84,60 @@ export function PublicPage({
                     className="size-full object-cover"
                   />
                 ) : (
-                  <span className="text-muted-foreground text-[10px] font-semibold">
+                  <span className="text-[10px] font-semibold text-[#9BA5B3]">
                     {initials}
                   </span>
                 )}
               </div>
-              <span className="text-sm font-semibold tracking-tight">
+              <span
+                className="text-sm font-semibold tracking-tight text-[#E8EDF2]"
+                style={{ letterSpacing: "-0.3px" }}
+              >
                 {profile.display_name ?? `@${profile.username}`}
               </span>
             </div>
           </div>
         </header>
 
-        {/*
-          Blocks are rendered as full-bleed sections by BlockRenderer when
-          template="landing". No max-w wrapper here — each section owns its
-          own padding and inner max-width.
-        */}
-        <BlockRenderer blocks={blocks} pageId={page.id} template="landing" />
+        {/* Blocks. Full-bleed sections, themed via cascading CSS vars. */}
+        <div className="relative z-10">
+          <BlockRenderer
+            blocks={blocks}
+            pageId={page.id}
+            template="landing"
+          />
+        </div>
 
         {blocks.length === 0 ? (
-          <div className="mx-auto max-w-2xl px-4 py-32 text-center sm:px-8">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <div className="relative z-10 mx-auto max-w-2xl px-4 py-32 text-center sm:px-8">
+            <h1
+              className="text-2xl font-semibold text-[#E8EDF2] sm:text-3xl"
+              style={{ letterSpacing: "-1.5px" }}
+            >
               Nothing to show yet
             </h1>
-            <p className="text-muted-foreground mt-3 text-sm sm:text-base">
+            <p className="mt-3 text-sm text-[#9BA5B3] sm:text-base">
               {profile.display_name ?? `@${profile.username}`} hasn&apos;t
               published this landing page yet. Check back soon.
             </p>
           </div>
         ) : null}
 
-        <footer className="border-t border-zinc-200/70 bg-zinc-50">
+        <footer
+          className="relative z-10"
+          style={{
+            background: "rgba(15,20,25,0.6)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 px-4 py-10 text-center sm:flex-row sm:justify-between sm:text-left sm:px-8">
             <div className="flex items-center gap-2.5">
-              <div className="bg-muted flex size-8 items-center justify-center overflow-hidden rounded-full">
+              <div
+                className="flex size-8 items-center justify-center overflow-hidden rounded-full"
+                style={{ background: "rgba(255,255,255,0.06)" }}
+              >
                 {profile.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -99,25 +146,28 @@ export function PublicPage({
                     className="size-full object-cover"
                   />
                 ) : (
-                  <span className="text-muted-foreground text-xs font-semibold">
+                  <span className="text-xs font-semibold text-[#9BA5B3]">
                     {initials}
                   </span>
                 )}
               </div>
               <div className="leading-tight">
-                <p className="text-sm font-medium">
+                <p className="text-sm font-medium text-[#E8EDF2]">
                   {profile.display_name ?? `@${profile.username}`}
                 </p>
                 {profile.display_name ? (
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-xs text-[#7D8A99]">
                     @{profile.username}
                   </p>
                 ) : null}
               </div>
             </div>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-[#7D8A99]">
               Powered by{" "}
-              <a href="/" className="underline underline-offset-2">
+              <a
+                href="/"
+                className="underline underline-offset-2 hover:text-[#E8EDF2]"
+              >
                 Contenomics
               </a>
             </p>

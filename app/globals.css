@@ -135,3 +135,136 @@
     text-wrap: balance;
   }
 }
+
+/* ─── Contenomics dark / glass theme ──────────────────────────────────
+   Scoped class. Apply to a wrapper element to flip the design system
+   to the dark glass-morphism palette used by the marketing homepage
+   and the user-built landing template. Affects only its descendants —
+   never globals, never the dashboard.
+
+   Mechanism: overrides the same CSS custom properties globals.css
+   defines on :root, so any descendant using semantic Tailwind classes
+   (bg-background, text-foreground, border-border, bg-muted, etc.)
+   automatically picks up dark values. Plus paints the dark gradient
+   background and exposes a few extra accent vars for green CTAs.
+*/
+.contenomics-dark {
+  --background: #1a1f26;
+  --foreground: #e8edf2;
+  --card: #1e2730;
+  --card-foreground: #e8edf2;
+  --popover: #1e2730;
+  --popover-foreground: #e8edf2;
+  --primary: #10b981;
+  --primary-foreground: #ffffff;
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: #e8edf2;
+  --muted: rgba(255, 255, 255, 0.04);
+  --muted-foreground: #9ba5b3;
+  --accent: rgba(255, 255, 255, 0.06);
+  --accent-foreground: #e8edf2;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: rgba(16, 185, 129, 0.5);
+
+  /* Extras — used by Tailwind arbitrary values inside the marketing
+     homepage and landing template wrappers. */
+  --tertiary-foreground: #7d8a99;
+  --accent-emerald: #10b981;
+  --accent-teal: #14b8a6;
+  --accent-blue: #3b82f6;
+
+  background: linear-gradient(180deg, #0f1419 0%, #1a1f26 100%);
+  color: #e8edf2;
+  position: relative;
+}
+
+/* Glass card surface — opt in via class on cards inside contenomics-dark. */
+.contenomics-dark .glass-card {
+  background: linear-gradient(
+    135deg,
+    rgba(30, 39, 48, 0.6) 0%,
+    rgba(35, 43, 54, 0.4) 100%
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Glass header (sticky/fixed bars). */
+.contenomics-dark .glass-header {
+  background: rgba(15, 20, 25, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Emerald → teal accent gradient (primary CTAs, hero highlights). */
+.contenomics-dark .accent-gradient {
+  background: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25);
+}
+.contenomics-dark .accent-gradient:hover {
+  filter: brightness(1.05);
+}
+
+/* Headline gradient text. */
+.contenomics-dark .gradient-text {
+  background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Decorative radial glow — apply to an absolutely positioned div behind
+   sections. pointer-events: none so it never blocks interactions. */
+.contenomics-dark .glow-emerald {
+  position: absolute;
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.12) 0%,
+    transparent 65%
+  );
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
+}
+.contenomics-dark .glow-blue {
+  position: absolute;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.08) 0%,
+    transparent 65%
+  );
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Pro/highlighted card (used for the "Pro" tier or other emphasis cards). */
+.contenomics-dark .pro-card {
+  background: linear-gradient(135deg, #10b981 0%, #0d9488 100%);
+  color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(16, 185, 129, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+.contenomics-dark .pro-card::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.15) 0%,
+    transparent 70%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+}

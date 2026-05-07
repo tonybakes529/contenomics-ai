@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export const metadata = {
   title: "Contenomics — Link in bio + email CRM for YouTubers",
@@ -10,7 +8,9 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white text-black">
+    // Wrapper enables scoped dark/glass theme via CSS var overrides in
+    // globals.css (.contenomics-dark). Nothing here cascades outside.
+    <main className="contenomics-dark relative min-h-screen overflow-hidden">
       <Header />
       <Hero />
       <SocialProof />
@@ -26,21 +26,27 @@ export default function Home() {
 
 function Header() {
   return (
-    <header className="border-b border-zinc-200/70">
+    <header className="glass-header sticky top-0 z-30">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-8">
-        <Link href="/" className="text-base font-semibold tracking-tight">
+        <Link
+          href="/"
+          className="text-base font-semibold tracking-tight text-[#E8EDF2]"
+          style={{ letterSpacing: "-0.5px" }}
+        >
           Contenomics
         </Link>
         <nav className="flex items-center gap-3">
           <Link
             href="/login"
-            className="text-muted-foreground hover:text-foreground hidden text-sm sm:inline"
+            className="hidden text-sm text-[#9BA5B3] transition-colors hover:text-[#E8EDF2] sm:inline"
+            style={{ letterSpacing: "-0.2px" }}
           >
             Sign in
           </Link>
           <Link
             href="/signup"
-            className={cn(buttonVariants({ size: "sm" }))}
+            className="accent-gradient inline-flex h-9 items-center rounded-[10px] px-4 text-sm font-medium"
+            style={{ letterSpacing: "-0.2px" }}
           >
             Start free
           </Link>
@@ -52,36 +58,81 @@ function Header() {
 
 function Hero() {
   return (
-    <section className="px-4 sm:px-8">
-      <div className="mx-auto max-w-4xl py-16 text-center sm:py-28">
-        <p className="text-muted-foreground mb-4 text-xs font-medium uppercase tracking-widest">
+    <section className="relative px-4 sm:px-8">
+      {/* Decorative glows behind the hero. Absolute, non-interactive. */}
+      <div
+        className="glow-emerald"
+        style={{
+          top: "-100px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "800px",
+          height: "600px",
+        }}
+        aria-hidden
+      />
+      <div
+        className="glow-blue"
+        style={{ top: "40%", right: "10%", width: "400px", height: "400px" }}
+        aria-hidden
+      />
+
+      <div className="relative z-10 mx-auto max-w-4xl py-16 text-center sm:py-28">
+        <span
+          className="mb-6 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+          style={{
+            background: "rgba(16,185,129,0.1)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            border: "1px solid rgba(16,185,129,0.2)",
+            color: "#10B981",
+            letterSpacing: "-0.1px",
+          }}
+        >
           For YouTubers
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-          Your link in bio, with a CRM that pays you back.
+        </span>
+        <h1
+          className="text-balance font-semibold text-[#E8EDF2]"
+          style={{
+            fontSize: "clamp(36px, 6vw, 52px)",
+            lineHeight: 1.05,
+            letterSpacing: "-2.5px",
+          }}
+        >
+          Your link in bio, with a{" "}
+          <span className="gradient-text">CRM</span> that pays you back.
         </h1>
-        <p className="text-muted-foreground mx-auto mt-6 max-w-2xl text-base text-balance sm:text-lg">
+        <p
+          className="mx-auto mt-6 max-w-2xl text-balance text-base text-[#9BA5B3] sm:text-lg"
+          style={{ letterSpacing: "-0.2px" }}
+        >
           Stop pointing viewers at a static link tree. Build a page that
-          captures emails, routes fans where you want them, and shows you what
-          actually drives clicks.
+          captures emails, routes fans where you want them, and shows you
+          what actually drives clicks.
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/signup"
-            className={cn(buttonVariants({ size: "lg" }))}
+            className="accent-gradient inline-flex h-12 items-center rounded-[10px] px-6 text-sm font-medium"
+            style={{ letterSpacing: "-0.2px" }}
           >
             Start free — no credit card
           </Link>
           <a
             href="#how-it-works"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-            )}
+            className="inline-flex h-12 items-center rounded-[10px] px-6 text-sm font-medium text-[#E8EDF2] transition-colors"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+              letterSpacing: "-0.2px",
+            }}
           >
             How it works
           </a>
         </div>
-        <p className="text-muted-foreground mt-4 text-xs">
+        <p className="mt-4 text-xs text-[#7D8A99]">
           Free during beta. No card required.
         </p>
       </div>
@@ -91,12 +142,15 @@ function Hero() {
 
 function SocialProof() {
   return (
-    <section className="border-y border-zinc-200/70 bg-zinc-50 px-4 py-8 sm:px-8">
+    <section
+      className="relative z-10 px-4 py-8 sm:px-8"
+      style={{ borderTop: "1px solid rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+    >
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 text-center">
-        <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest">
+        <p className="text-xs font-medium uppercase tracking-widest text-[#7D8A99]">
           Built for the platforms YouTubers actually use
         </p>
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm text-[#9BA5B3]">
           <span>YouTube</span>
           <span>·</span>
           <span>Instagram</span>
@@ -146,13 +200,16 @@ function Features() {
     },
   ];
   return (
-    <section className="px-4 py-20 sm:px-8 sm:py-28">
+    <section className="relative z-10 px-4 py-20 sm:px-8 sm:py-28">
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl space-y-3 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2
+            className="text-3xl font-semibold text-[#E8EDF2] sm:text-4xl"
+            style={{ letterSpacing: "-1.5px" }}
+          >
             Everything you need to grow off-platform.
           </h2>
-          <p className="text-muted-foreground text-base sm:text-lg">
+          <p className="text-base text-[#9BA5B3] sm:text-lg" style={{ letterSpacing: "-0.2px" }}>
             One link in your description, a real list of fans on the other end.
           </p>
         </div>
@@ -160,11 +217,13 @@ function Features() {
           {items.map((it) => (
             <div
               key={it.title}
-              className="rounded-2xl border border-zinc-200/80 p-6"
+              className="glass-card rounded-2xl p-6"
             >
               <div className="text-2xl">{it.icon}</div>
-              <h3 className="mt-3 text-base font-semibold">{it.title}</h3>
-              <p className="text-muted-foreground mt-2 text-sm">{it.body}</p>
+              <h3 className="mt-3 text-base font-semibold text-[#E8EDF2]" style={{ letterSpacing: "-0.4px" }}>
+                {it.title}
+              </h3>
+              <p className="mt-2 text-sm text-[#9BA5B3]">{it.body}</p>
             </div>
           ))}
         </div>
@@ -194,25 +253,40 @@ function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-y border-zinc-200/70 bg-zinc-50 px-4 py-20 sm:px-8 sm:py-28"
+      className="relative z-10 px-4 py-20 sm:px-8 sm:py-28"
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(15,20,25,0.4)",
+      }}
     >
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto max-w-2xl space-y-3 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-[#E8EDF2] sm:text-4xl" style={{ letterSpacing: "-1.5px" }}>
             Up in five minutes.
           </h2>
-          <p className="text-muted-foreground text-base sm:text-lg">
+          <p className="text-base text-[#9BA5B3] sm:text-lg" style={{ letterSpacing: "-0.2px" }}>
             No funnel-builder courses. No setup wizards. Just three steps.
           </p>
         </div>
         <ol className="mt-12 grid gap-5 sm:grid-cols-3">
           {steps.map((s) => (
-            <li key={s.n} className="rounded-2xl bg-white p-6">
-              <div className="text-muted-foreground text-xs font-semibold tracking-widest">
+            <li key={s.n} className="glass-card rounded-2xl p-6">
+              <div
+                className="inline-flex size-8 items-center justify-center rounded-full text-xs font-semibold tabular-nums"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(59,130,246,0.2) 100%)",
+                  border: "1px solid rgba(16,185,129,0.3)",
+                  color: "#10B981",
+                }}
+              >
                 {s.n}
               </div>
-              <h3 className="mt-2 text-base font-semibold">{s.title}</h3>
-              <p className="text-muted-foreground mt-2 text-sm">{s.body}</p>
+              <h3 className="mt-3 text-base font-semibold text-[#E8EDF2]" style={{ letterSpacing: "-0.4px" }}>
+                {s.title}
+              </h3>
+              <p className="mt-2 text-sm text-[#9BA5B3]">{s.body}</p>
             </li>
           ))}
         </ol>
@@ -223,76 +297,75 @@ function HowItWorks() {
 
 function Comparison() {
   const rows = [
-    {
-      label: "Link in bio",
-      contenomics: true,
-      others: true,
-    },
-    {
-      label: "Landing-page template (hero, features, pricing)",
-      contenomics: true,
-      others: false,
-    },
-    {
-      label: "Email capture into your own CRM",
-      contenomics: true,
-      others: "Locked behind upsells",
-    },
-    {
-      label: "Per-block click tracking with UTM",
-      contenomics: true,
-      others: "Aggregate only",
-    },
-    {
-      label: "Export your subscribers as CSV",
-      contenomics: true,
-      others: "Sometimes paid",
-    },
-    {
-      label: "Multiple pages per profile",
-      contenomics: true,
-      others: false,
-    },
+    { label: "Link in bio", contenomics: true, others: true },
+    { label: "Landing-page template (hero, features, pricing)", contenomics: true, others: false },
+    { label: "Email capture into your own CRM", contenomics: true, others: "Locked behind upsells" },
+    { label: "Per-block click tracking with UTM", contenomics: true, others: "Aggregate only" },
+    { label: "Export your subscribers as CSV", contenomics: true, others: "Sometimes paid" },
+    { label: "Multiple pages per profile", contenomics: true, others: false },
   ];
   return (
-    <section className="px-4 py-20 sm:px-8 sm:py-28">
+    <section className="relative z-10 px-4 py-20 sm:px-8 sm:py-28">
       <div className="mx-auto max-w-4xl">
         <div className="space-y-3 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-[#E8EDF2] sm:text-4xl" style={{ letterSpacing: "-1.5px" }}>
             Why not Linktree, Beacons, or Stan?
           </h2>
-          <p className="text-muted-foreground text-base sm:text-lg">
+          <p className="text-base text-[#9BA5B3] sm:text-lg" style={{ letterSpacing: "-0.2px" }}>
             Those tools were built to keep you on their platform. Contenomics
             was built to grow your list off-platform.
           </p>
         </div>
-        <div className="mt-12 overflow-hidden rounded-2xl border border-zinc-200/80">
+        <div className="glass-card mt-12 overflow-hidden rounded-2xl">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50">
+            <thead style={{ background: "rgba(255,255,255,0.04)" }}>
               <tr>
-                <th className="px-4 py-3 text-left font-medium">Feature</th>
-                <th className="px-4 py-3 text-left font-medium">Contenomics</th>
-                <th className="px-4 py-3 text-left font-medium">Most others</th>
+                <th
+                  className="px-4 py-3 text-left font-medium text-[#E8EDF2]"
+                  style={{ letterSpacing: "-0.2px" }}
+                >
+                  Feature
+                </th>
+                <th
+                  className="px-4 py-3 text-left font-medium text-[#10B981]"
+                  style={{ letterSpacing: "-0.2px" }}
+                >
+                  Contenomics
+                </th>
+                <th
+                  className="px-4 py-3 text-left font-medium text-[#9BA5B3]"
+                  style={{ letterSpacing: "-0.2px" }}
+                >
+                  Most others
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200/80">
-              {rows.map((r) => (
-                <tr key={r.label}>
-                  <td className="px-4 py-3">{r.label}</td>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr
+                  key={r.label}
+                  style={{
+                    borderTop:
+                      i === 0 ? undefined : "1px solid rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <td className="px-4 py-3 text-[#E8EDF2]">{r.label}</td>
                   <td className="px-4 py-3">
                     {typeof r.contenomics === "boolean" ? (
                       r.contenomics ? (
-                        <span aria-label="Yes">✓</span>
+                        <span className="text-[#10B981]" aria-label="Yes">
+                          ✓
+                        </span>
                       ) : (
-                        <span className="text-muted-foreground" aria-label="No">
+                        <span className="text-[#7D8A99]" aria-label="No">
                           —
                         </span>
                       )
                     ) : (
-                      r.contenomics
+                      <span className="text-[#E8EDF2]">{r.contenomics}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="px-4 py-3 text-[#9BA5B3]">
                     {typeof r.others === "boolean" ? (
                       r.others ? (
                         <span>✓</span>
@@ -337,26 +410,40 @@ function Faq() {
     },
   ];
   return (
-    <section className="border-y border-zinc-200/70 bg-zinc-50 px-4 py-20 sm:px-8 sm:py-28">
+    <section
+      className="relative z-10 px-4 py-20 sm:px-8 sm:py-28"
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(15,20,25,0.4)",
+      }}
+    >
       <div className="mx-auto max-w-3xl">
         <div className="space-y-3 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="text-3xl font-semibold text-[#E8EDF2] sm:text-4xl" style={{ letterSpacing: "-1.5px" }}>
             Honest answers
           </h2>
         </div>
-        <div className="mt-10 divide-y divide-zinc-200/80 rounded-2xl bg-white">
-          {items.map((it) => (
-            <details key={it.q} className="group p-5">
-              <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">
+        <div className="glass-card mt-10 rounded-2xl">
+          {items.map((it, i) => (
+            <details
+              key={it.q}
+              className="group p-5"
+              style={{
+                borderTop:
+                  i === 0 ? undefined : "1px solid rgba(255,255,255,0.05)",
+              }}
+            >
+              <summary className="flex cursor-pointer items-center justify-between gap-4 text-sm font-medium text-[#E8EDF2] [&::-webkit-details-marker]:hidden">
                 <span>{it.q}</span>
                 <span
-                  className="text-muted-foreground transition-transform group-open:rotate-45"
+                  className="text-[#9BA5B3] transition-transform group-open:rotate-45"
                   aria-hidden
                 >
                   +
                 </span>
               </summary>
-              <p className="text-muted-foreground mt-3 text-sm">{it.a}</p>
+              <p className="mt-3 text-sm text-[#9BA5B3]">{it.a}</p>
             </details>
           ))}
         </div>
@@ -367,19 +454,29 @@ function Faq() {
 
 function FinalCta() {
   return (
-    <section className="px-4 py-20 sm:px-8 sm:py-28">
-      <div className="bg-foreground text-background mx-auto max-w-5xl rounded-3xl px-6 py-14 text-center sm:px-12 sm:py-20">
-        <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+    <section className="relative z-10 px-4 py-20 sm:px-8 sm:py-28">
+      <div className="pro-card mx-auto max-w-5xl px-6 py-14 text-center sm:px-12 sm:py-20">
+        <h2
+          className="relative z-10 text-3xl font-semibold text-white sm:text-4xl"
+          style={{ letterSpacing: "-1.5px" }}
+        >
           Stop renting your audience.
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-base opacity-80 sm:text-lg">
+        <p
+          className="relative z-10 mx-auto mt-4 max-w-xl text-base text-white/85 sm:text-lg"
+          style={{ letterSpacing: "-0.2px" }}
+        >
           Build your link in bio, capture emails, and own your list. Free
           during beta.
         </p>
-        <div className="mt-8">
+        <div className="relative z-10 mt-8">
           <Link
             href="/signup"
-            className="bg-background text-foreground inline-flex h-12 items-center rounded-xl px-6 text-sm font-medium transition-opacity hover:opacity-90"
+            className="inline-flex h-12 items-center rounded-[10px] bg-white px-6 text-sm font-medium text-[#0D9488] transition-opacity hover:opacity-90"
+            style={{
+              letterSpacing: "-0.2px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+            }}
           >
             Start free →
           </Link>
@@ -391,14 +488,22 @@ function FinalCta() {
 
 function Footer() {
   return (
-    <footer className="border-t border-zinc-200/70 px-4 py-10 sm:px-8">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
+    <footer
+      className="relative z-10 px-4 py-10 sm:px-8"
+      style={{
+        background: "rgba(15,20,25,0.6)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-xs text-[#7D8A99] sm:flex-row">
         <p>© {new Date().getFullYear()} Contenomics</p>
         <div className="flex items-center gap-4">
-          <Link href="/login" className="hover:text-foreground">
+          <Link href="/login" className="transition-colors hover:text-[#E8EDF2]">
             Sign in
           </Link>
-          <Link href="/signup" className="hover:text-foreground">
+          <Link href="/signup" className="transition-colors hover:text-[#E8EDF2]">
             Sign up
           </Link>
         </div>
