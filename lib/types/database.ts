@@ -396,6 +396,147 @@ export interface Database {
           },
         ];
       };
+      viewtrack_videos: {
+        Row: {
+          id: string;
+          profile_id: string;
+          // Identity
+          video_external_id: string | null;
+          date_posted: string | null;
+          final_title: string | null;
+          video_url: string | null;
+          length_text: string | null;
+          topic: string | null;
+          platform: "youtube" | "shorts" | "linkedin";
+          // Creative
+          ab_title_1: string | null;
+          ab_title_2: string | null;
+          ab_title_3: string | null;
+          winning_title_num: number | null;
+          winning_style:
+            | "Curiosity"
+            | "List"
+            | "How-To"
+            | "Question"
+            | "Shock"
+            | null;
+          thumbnail_url: string | null;
+          thumbnail_path: string | null;
+          face_yn: "Y" | "N" | null;
+          face_emotion:
+            | "Shock"
+            | "Smile"
+            | "Serious"
+            | "Curious"
+            | "None"
+            | null;
+          word_count: number | null;
+          words_used: string | null;
+          background: "Solid" | "Scene" | "Gradient" | "Photo" | null;
+          color_palette: "Bright" | "Dark" | "Mixed" | null;
+          hook_script: string | null;
+          hook_style:
+            | "Question"
+            | "Stat"
+            | "Story"
+            | "Bold Claim"
+            | "Pattern Interrupt"
+            | null;
+          intro_length_sec: number | null;
+          time_to_value_sec: number | null;
+          thumbnail_notes: string | null;
+          // Performance
+          ctr_24h: number | null;
+          ctr_7d: number | null;
+          ctr_30d: number | null;
+          drop_off_rate: number | null;
+          drop_off_timestamp: string | null;
+          avd: string | null;
+          views_7d: number | null;
+          views_30d: number | null;
+          // Conversion
+          ctas_used: string | null;
+          click_throughs: number | null;
+          engagement_rate: number | null;
+          calls_booked: number | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          video_external_id?: string | null;
+          date_posted?: string | null;
+          final_title?: string | null;
+          video_url?: string | null;
+          length_text?: string | null;
+          topic?: string | null;
+          platform?: "youtube" | "shorts" | "linkedin";
+          ab_title_1?: string | null;
+          ab_title_2?: string | null;
+          ab_title_3?: string | null;
+          winning_title_num?: number | null;
+          winning_style?:
+            | "Curiosity"
+            | "List"
+            | "How-To"
+            | "Question"
+            | "Shock"
+            | null;
+          thumbnail_url?: string | null;
+          thumbnail_path?: string | null;
+          face_yn?: "Y" | "N" | null;
+          face_emotion?:
+            | "Shock"
+            | "Smile"
+            | "Serious"
+            | "Curious"
+            | "None"
+            | null;
+          word_count?: number | null;
+          words_used?: string | null;
+          background?: "Solid" | "Scene" | "Gradient" | "Photo" | null;
+          color_palette?: "Bright" | "Dark" | "Mixed" | null;
+          hook_script?: string | null;
+          hook_style?:
+            | "Question"
+            | "Stat"
+            | "Story"
+            | "Bold Claim"
+            | "Pattern Interrupt"
+            | null;
+          intro_length_sec?: number | null;
+          time_to_value_sec?: number | null;
+          thumbnail_notes?: string | null;
+          ctr_24h?: number | null;
+          ctr_7d?: number | null;
+          ctr_30d?: number | null;
+          drop_off_rate?: number | null;
+          drop_off_timestamp?: string | null;
+          avd?: string | null;
+          views_7d?: number | null;
+          views_30d?: number | null;
+          ctas_used?: string | null;
+          click_throughs?: number | null;
+          engagement_rate?: number | null;
+          calls_booked?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["viewtrack_videos"]["Insert"]
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "viewtrack_videos_profile_id_fkey";
+            columns: ["profile_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clicks: {
         Row: {
           id: string;
@@ -471,3 +612,40 @@ export type SubscriberList =
   Database["public"]["Tables"]["subscriber_lists"]["Row"];
 export type Click = Database["public"]["Tables"]["clicks"]["Row"];
 export type LeadMagnet = Database["public"]["Tables"]["lead_magnets"]["Row"];
+export type ViewtrackVideo =
+  Database["public"]["Tables"]["viewtrack_videos"]["Row"];
+export type ViewtrackVideoInsert =
+  Database["public"]["Tables"]["viewtrack_videos"]["Insert"];
+export type ViewtrackVideoUpdate =
+  Database["public"]["Tables"]["viewtrack_videos"]["Update"];
+
+// Dropdown enum values — used by both the form UI and server-side validation.
+export const VIEWTRACK_TITLE_STYLES = [
+  "Curiosity",
+  "List",
+  "How-To",
+  "Question",
+  "Shock",
+] as const;
+export const VIEWTRACK_FACE_EMOTIONS = [
+  "Shock",
+  "Smile",
+  "Serious",
+  "Curious",
+  "None",
+] as const;
+export const VIEWTRACK_BACKGROUNDS = [
+  "Solid",
+  "Scene",
+  "Gradient",
+  "Photo",
+] as const;
+export const VIEWTRACK_COLOR_PALETTES = ["Bright", "Dark", "Mixed"] as const;
+export const VIEWTRACK_HOOK_STYLES = [
+  "Question",
+  "Stat",
+  "Story",
+  "Bold Claim",
+  "Pattern Interrupt",
+] as const;
+export const VIEWTRACK_PLATFORMS = ["youtube", "shorts", "linkedin"] as const;
