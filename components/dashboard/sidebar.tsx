@@ -9,6 +9,7 @@ import {
   Users,
   ListChecks,
   Magnet,
+  BarChart3,
   Settings,
   ExternalLink,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard/subscribers", label: "Subscribers", icon: Users },
   { href: "/dashboard/lists", label: "Lists", icon: ListChecks },
   { href: "/dashboard/lead-magnets", label: "Lead magnets", icon: Magnet },
+  { href: "/dashboard/viewtrack", label: "Viewtrack", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
