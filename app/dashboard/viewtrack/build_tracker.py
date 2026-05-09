@@ -496,6 +496,11 @@ ai.freeze_panes = "B3"
 
 import os
 
-out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tracker.xlsx")
+# Write into /public so Next.js serves it at /viewtrack/tracker.xlsx.
+_here = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.abspath(os.path.join(_here, "..", "..", ".."))
+_out_dir = os.path.join(_repo_root, "public", "viewtrack")
+os.makedirs(_out_dir, exist_ok=True)
+out_path = os.path.join(_out_dir, "tracker.xlsx")
 wb.save(out_path)
 print(f"Wrote {out_path}")
